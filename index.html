@@ -1775,29 +1775,49 @@
     <script>
         // --- FIREBASE CONFIGURATION ---
         const firebaseConfig = {
-            apiKey: "AIzaSyBkZ7l2m3n4o5p6q7r8s9t0u1v2w3x4y5z",
-            authDomain: "oudelle-app.firebaseapp.com",
-            projectId: "oudelle-app",
-            storageBucket: "oudelle-app.appspot.com",
-            messagingSenderId: "123456789012",
-            appId: "1:123456789012:web:abcdef1234567890abcdef12"
+            apiKey: "AIzaSyB7pFoM2AeEJnWo9SVQ594P5pt9tuXRGg4",
+            authDomain: "oudelle.firebaseapp.com",
+            databaseURL: "https://oudelle-default-rtdb.firebaseio.com",
+            projectId: "oudelle",
+            storageBucket: "oudelle.firebasestorage.app",
+            messagingSenderId: "44390123746",
+            appId: "1:44390123746:web:4932a37011924d5bce36bb",
+            measurementId: "G-R3LS4MJNSY"
         };
 
         let db, auth;
         let isCloudActive = false;
 
         try {
-            if (firebaseConfig.apiKey) {
-                firebase.initializeApp(firebaseConfig);
-                db = firebase.firestore();
-                auth = firebase.auth();
-                isCloudActive = true;
-                console.log("🔥 Cloud Mode Active (Firebase)");
-            } else {
-                console.warn("⚠️ Firebase Config missing! Running in LocalStorage Mode.");
-            }
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            auth = firebase.auth();
+            isCloudActive = true;
+            console.log("🔥 Firebase initialized successfully!");
+            console.log("📱 Project ID:", firebaseConfig.projectId);
+            
+            // Test Firestore connection
+            db.collection('app').doc('data').get().then((doc) => {
+                console.log("✅ Firestore connection test passed!");
+                if (doc.exists) {
+                    console.log("📦 Data found in cloud");
+                } else {
+                    console.log("⚠️ No data in cloud yet - will create on first save");
+                }
+            }).catch((err) => {
+                console.error("❌ Firestore connection failed:", err.message);
+                console.log("💡 Fix: Go to Firebase Console → Firestore Database → Create database → Start in test mode");
+            });
         } catch (e) {
             console.error("Firebase Init Error:", e);
+            isCloudActive = false;
+        }
+        
+        // Fallback: Ensure database loads even if Firebase fails
+        if (!isCloudActive) {
+            console.log("⚠️ Running in Local Mode (no Firebase)");
+            loadDatabase();
+            ensureDefaults();
         }
         let WHATSAPP_NUM = "201023728183";
         let TICKER_TEXT = "عرض خاص: خصم 10% على جميع الحلويات الشرقية عند الطلب عبر الموقع! | التوصيل مجاني للطلبات فوق 500 ج.م | جرب الكنافة النابلسية الآن!";
@@ -3256,8 +3276,22 @@
         </center>
     </div>
 
-
-
+    <!-- Initialization -->
+    <script>
+        // Ensure products display on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                console.log('🚀 Initializing app...');
+                ensureDefaults();
+                renderCategories();
+                render(currentCat);
+                renderBestSellers();
+                renderGallery();
+                syncUI();
+                console.log('✅ App initialized!');
+            }, 200);
+        });
+    </script>
 
 </body>
 
