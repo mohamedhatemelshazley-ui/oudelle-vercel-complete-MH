@@ -2089,22 +2089,25 @@
         function saveAdminChanges() {
             localStorage.setItem('oudelle_custom_database', JSON.stringify(database));
             
-            // Ultra-fast UI update BEFORE Firebase sync
+            // ZERO-TIME EXECUTION - IMMEDIATE UI update
             const startTime = performance.now();
             
-            // Batch DOM updates for maximum speed
-            requestAnimationFrame(() => {
-                ensureDefaults();
-                renderCategories();
-                render(currentCat);
-                renderBestSellers();
-                renderGallery();
-                syncUI();
-                showSyncNotification();
-                
-                const renderTime = performance.now() - startTime;
-                console.log(` UI rendered in ${renderTime.toFixed(2)}ms`);
-            });
+            // SYNCHRONOUS DOM updates - ZERO WAITING
+            ensureDefaults();
+            renderCategories();
+            render(currentCat);
+            renderBestSellers();
+            renderGallery();
+            syncUI();
+            showSyncNotification();
+            
+            // Force browser to render immediately
+            if (typeof document !== 'undefined' && document.body) {
+                document.body.offsetHeight; // Force reflow
+            }
+            
+            const renderTime = performance.now() - startTime;
+            console.log(` UI rendered in ${renderTime.toFixed(2)}ms - ZERO-TIME EXECUTION!`);
             
             // Broadcast to other tabs instantly
             if (broadcastChannel) {
