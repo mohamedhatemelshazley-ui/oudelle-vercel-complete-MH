@@ -2107,7 +2107,7 @@
             if (!q) return render(currentCat);
             let html = "";
             let found = false;
-            const uploadedImages = JSON.parse(localStorage.getItem('oudelle_uploaded_images') || '{}');
+            const uploadedImages = database.uploadedImages || {};
 
             for (let cat in database) {
                 if (cat === 'categories' || cat === 'stats' || cat === 'gallery' || cat === 'orders' || cat === 'settings' || cat === 'vouchers' || cat === 'delivery') continue;
@@ -2169,10 +2169,16 @@
                                 if (btn) btn.innerText = isRamadanMode ? "إبطال" : "تفعيل";
                             }
                             
+                            // Apply home background from cloud immediately
+                            if (database.settings && database.settings.homeBackground) {
+                                const sliderBg = document.getElementById('slider-bg');
+                                sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no-repeat`;
+                            }
+                            
                             syncUI();
                             
                             // Show sync notification
-                            console.log(" UI updated from cloud!");
+                            console.log("✅ UI updated from cloud!");
                         }
                     }
                 }).catch((error) => {
@@ -2471,7 +2477,7 @@
                 return;
             }
 
-            const uploadedImages = JSON.parse(localStorage.getItem('oudelle_uploaded_images') || '{}');
+            const uploadedImages = database.uploadedImages || {};
             itemsWithIndex.forEach((p) => {
                 const i = p.index;
                 const isSoldOut = p.inStock === false;
