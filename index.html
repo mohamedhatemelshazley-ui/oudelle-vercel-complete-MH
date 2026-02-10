@@ -3304,6 +3304,22 @@
                 renderBestSellers();
                 renderGallery();
                 syncUI();
+                
+                // Apply Ramadan mode from database
+                if (database.settings && database.settings.isRamadanMode !== undefined) {
+                    isRamadanMode = database.settings.isRamadanMode;
+                    localStorage.setItem('oudelle_ramadan', isRamadanMode);
+                    document.body.classList.toggle('ramadan-mode', isRamadanMode);
+                    const btn = document.getElementById('ramadan-toggle-btn');
+                    if (btn) btn.innerText = isRamadanMode ? "إبطال" : "تفعيل";
+                }
+                
+                // Apply home background from database
+                if (database.settings && database.settings.homeBackground) {
+                    const sliderBg = document.getElementById('slider-bg');
+                    sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no-repeat`;
+                }
+                
                 console.log('✅ App initialized!');
             }, 200);
         });
