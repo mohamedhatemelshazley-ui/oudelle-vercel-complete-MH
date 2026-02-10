@@ -1384,6 +1384,28 @@
                 transform: scale(1);
             }
         }
+
+        @keyframes slideDown {
+            from {
+                transform: translate(-50%, -100px);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+            to {
+                transform: translate(-50%, -100px);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 
@@ -1782,6 +1804,7 @@
         let selectedTableNumber = null;
         let currentCat = 'oriental';
         let admCurrentCat = 'oriental';
+        let isRamadanMode = localStorage.getItem('oudelle_ramadan') === 'true';
 
         let database = {
             oriental: [
@@ -2055,6 +2078,22 @@
                     }
                 }, 500);
             }, 3000);
+        }
+
+function showMenu() {
+            document.getElementById('home-page').style.display = 'none';
+            document.getElementById('menu-page').style.display = 'block';
+            document.body.scrollTop = 0;
+            renderCategories();
+            render(currentCat);
+            renderBestSellers();
+            renderGallery();
+        }
+
+function showHome() {
+            document.getElementById('home-page').style.display = 'block';
+            document.getElementById('menu-page').style.display = 'none';
+            document.body.scrollTop = 0;
         }
 
 function toggleTheme() {
@@ -3001,21 +3040,6 @@ function searchProducts(q) {
                 if (admCurrentCat === cat.id) admCurrentCat = database.categories[0].id;
 
                 saveAdminChanges();
-                syncUI();
-            }
-        }
-
-        // --- Ramadan, Stats, Gallery Logic ---
-        function toggleRamadanMode() {
-            isRamadanMode = !isRamadanMode;
-            localStorage.setItem('oudelle_ramadan', isRamadanMode);
-            document.getElementById('ramadan-toggle-btn').innerText = isRamadanMode ? "إبطال" : "تفعيل";
-            syncUI();
-        }
-
-        function renderStats() {
-            if (document.getElementById('stat-orders')) {
-                document.getElementById('stat-orders').innerText = database.stats.totalOrders;
                 document.getElementById('stat-revenue').innerText = database.stats.totalRevenue.toFixed(0) + " ج";
 
                 // Top 5 Products by volume (simulated as we don't have order details history, but we can show products with isBestSeller for now)
@@ -3039,6 +3063,14 @@ function searchProducts(q) {
                     document.getElementById('top-products-stat').querySelector('.stat-val').innerText = topList;
                 }
             }
+        }
+
+        function toggleRamadanMode() {
+            isRamadanMode = !isRamadanMode;
+            localStorage.setItem('oudelle_ramadan', isRamadanMode);
+            document.getElementById('ramadan-toggle-btn').innerText = isRamadanMode ? "إبطال" : "تفعيل";
+            document.body.classList.toggle('ramadan-mode', isRamadanMode);
+            syncUI();
         }
 
         function admAddGallery() {
