@@ -2111,6 +2111,15 @@
                     // Force refresh on other devices by updating timestamp
                     const timestamp = new Date().toISOString();
                     localStorage.setItem('oudelle_last_sync', timestamp);
+                    
+                    // Instant UI update for all clients
+                    ensureDefaults();
+                    renderCategories();
+                    render(currentCat);
+                    renderBestSellers();
+                    renderGallery();
+                    syncUI();
+                    showSyncNotification();
                 }).catch((error) => {
                     console.error(" Cloud sync error:", error);
                     alert(" لم يتم الحفظ في السحابة. جاري الحفظ محلياً فقط.");
