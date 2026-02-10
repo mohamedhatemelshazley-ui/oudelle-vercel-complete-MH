@@ -2069,7 +2069,10 @@
             if (isCloudActive && db) {
                 console.log(" Syncing to cloud...");
                 db.collection('app').doc('data').set(database).then(() => {
-                    console.log(" Changes synced to cloud successfully!");
+                    console.log(" Changes synced to cloud!");
+                    // Force refresh on other devices by updating timestamp
+                    const timestamp = new Date().toISOString();
+                    localStorage.setItem('oudelle_last_sync', timestamp);
                 }).catch((error) => {
                     console.error(" Cloud sync error:", error);
                     alert(" لم يتم الحفظ في السحابة. جاري الحفظ محلياً فقط.");
@@ -2141,27 +2144,42 @@
             document.getElementById('products-container').innerHTML = html;
         }
 
-        // Periodic sync check every 5 seconds for Firebase
+        // Periodic sync check every 1 second for faster updates
         setInterval(() => {
             if (isCloudActive && db) {
                 db.collection('app').doc('data').get().then((doc) => {
                     if (doc.exists) {
                         const newData = doc.data();
                         if (JSON.stringify(newData) !== JSON.stringify(database)) {
-                            console.log(" Periodic sync: Update detected");
+                            console.log(" Real-time sync: Update detected");
                             database = newData;
+                            // Force complete UI refresh
+                            ensureDefaults();
                             renderCategories();
                             render(currentCat);
                             renderBestSellers();
                             renderGallery();
+                            
+                            // Apply Ramadan mode from cloud immediately
+                            if (database.settings && database.settings.isRamadanMode !== undefined) {
+                                isRamadanMode = database.settings.isRamadanMode;
+                                localStorage.setItem('oudelle_ramadan', isRamadanMode);
+                                document.body.classList.toggle('ramadan-mode', isRamadanMode);
+                                const btn = document.getElementById('ramadan-toggle-btn');
+                                if (btn) btn.innerText = isRamadanMode ? "إبطال" : "تفعيل";
+                            }
+                            
                             syncUI();
+                            
+                            // Show sync notification
+                            console.log(" UI updated from cloud!");
                         }
                     }
                 }).catch((error) => {
-                    console.error(" Periodic sync error:", error);
+                    console.error("Sync error:", error);
                 });
             }
-        }, 5000);
+        }, 1000);
 
         function openAdmin() {
             // Remove existing login modal if any
