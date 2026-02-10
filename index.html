@@ -2103,11 +2103,22 @@
                 });
             }
             
+            // Force Internet Mode - Always use Firebase
+            if (typeof firebase !== 'undefined' && !db) {
+                try {
+                    db = firebase.firestore();
+                    isCloudActive = true;
+                    console.log("🔥 Firebase re-initialized!");
+                } catch (e) {
+                    console.error("❌ Firebase re-init failed:", e);
+                }
+            }
+            
             // Real-time sync for all connected clients via Firebase
             if (isCloudActive && db) {
-                console.log(" Syncing to cloud...");
+                console.log("⚡ Syncing to cloud instantly...");
                 db.collection('app').doc('data').set(database).then(() => {
-                    console.log(" Changes synced to cloud!");
+                    console.log("⚡ Changes synced to cloud instantly!");
                     // Force refresh on other devices by updating timestamp
                     const timestamp = new Date().toISOString();
                     localStorage.setItem('oudelle_last_sync', timestamp);
@@ -2122,10 +2133,29 @@
                     showSyncNotification();
                 }).catch((error) => {
                     console.error(" Cloud sync error:", error);
-                    alert(" لم يتم الحفظ في السحابة. جاري الحفظ محلياً فقط.");
+                    // Retry immediately
+                    setTimeout(() => {
+                        if (db) {
+                            db.collection('app').doc('data').set(database).then(() => {
+                                console.log("⚡ Retry sync successful!");
+                            });
+                        }
+                    }, 50);
                 });
             } else {
-                console.log(" Saved to localStorage only (cloud not available)");
+                console.log("⚠️ Firebase not available - forcing reconnection...");
+                // Force Firebase initialization
+                setTimeout(() => {
+                    try {
+                        if (typeof firebase !== 'undefined') {
+                            db = firebase.firestore();
+                            isCloudActive = true;
+                            saveAdminChanges(); // Retry save
+                        }
+                    } catch (e) {
+                        console.error("❌ Force reconnection failed:", e);
+                    }
+                }, 100);
             }
         }
 
@@ -2254,7 +2284,7 @@
                     }
                 }, 100);
             }
-        }, 1); // Ultra-fast sync - every 1ms
+        }, 0); // Instant sync - every 0ms (no delay)
         
         // Auto refresh notification for users
         function showSyncNotification() {
