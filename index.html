@@ -1980,19 +1980,82 @@
             }
         });
 
+        // Real-time Cloud Synchronization
+        if (isCloudActive && db) {
+            // Listen for real-time updates from Firebase
+            db.collection('app').doc('data').onSnapshot((doc) => {
+                if (doc.exists) {
+                    const newData = doc.data();
+                    if (JSON.stringify(newData) !== JSON.stringify(database)) {
+                        console.log("🔄 Real-time update detected from cloud");
+                        database = newData;
+                        
+                        // Update all UI components
+                        renderCategories();
+                        if (!database.categories.find(c => c.id === currentCat)) {
+                            currentCat = database.categories[0]?.id || 'oriental';
+                        }
+                        render(currentCat);
+                        renderBestSellers();
+                        renderGallery();
+                        syncUI();
+                        
+                        // Update Admin UI if open
+                        if (document.getElementById('adminModal').style.display === 'flex') {
+                            renderAdmCategoriesList();
+                            renderAdmTabs();
+                            if (!database.categories.find(c => c.id === admCurrentCat)) {
+                                admCurrentCat = database.categories[0]?.id || 'oriental';
+                            }
+                            renderAdmTable();
+                            renderAdmVouchers();
+                            renderAdmAreas();
+                            renderAdmMixEditor();
+                            renderAdmOrders();
+                            renderStats();
+                        }
+                        
+                        // Show notification to clients
+                        showUpdateNotification();
+                    }
+                }
+            }, (error) => {
+                console.error("❌ Real-time listener error:", error);
+            });
+        }
 
-        // Global State & Shared Variables
-        let isRamadanMode = localStorage.getItem('oudelle_ramadan') === 'true';
-
-        // Init
-        syncUI();
-        initRamadanAtmosphere();
-        if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
-
-        // Background image slider disabled - keeping admin uploaded image static
-
-        function showMenu() { document.getElementById('home-page').style.display = 'none'; document.getElementById('menu-page').style.display = 'block'; window.scrollTo(0, 0); render('oriental', document.querySelector('.tab')); }
-        function showHome() { document.getElementById('home-page').style.display = 'flex'; document.getElementById('menu-page').style.display = 'none'; }
+        // Auto-refresh mechanism for clients
+        function showUpdateNotification() {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, var(--primary), var(--gold));
+                color: white;
+                padding: 15px 25px;
+                border-radius: 50px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                z-index: 10000;
+                font-weight: bold;
+                animation: slideDown 0.5s ease;
+            `;
+            notification.innerHTML = '🔄 تم تحديث القائمة! جاري التحديث تلقائياً...';
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideUp 0.5s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 500);
+            }, 3000);
+        }
 
 function toggleTheme() {
 document.body.classList.toggle('dark-mode');
