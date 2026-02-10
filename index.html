@@ -2162,7 +2162,7 @@
             document.getElementById('products-container').innerHTML = html;
         }
 
-        // Periodic sync check every 1 second for faster updates
+        // Periodic sync check every 500ms for faster updates
         setInterval(() => {
             if (isCloudActive && db) {
                 db.collection('app').doc('data').get().then((doc) => {
@@ -2195,7 +2195,8 @@
                             
                             syncUI();
                             
-                            // Show sync notification
+                            // Show sync notification to users
+                            showSyncNotification();
                             console.log("✅ UI updated from cloud!");
                         }
                     }
@@ -2203,7 +2204,39 @@
                     console.error("Sync error:", error);
                 });
             }
-        }, 1000);
+        }, 500); // Faster sync - every 500ms
+        
+        // Auto refresh notification for users
+        function showSyncNotification() {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, #4CAF50, #45a049);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 50px;
+                font-weight: bold;
+                z-index: 10000;
+                box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
+                animation: slideDown 0.5s ease;
+                font-size: 1rem;
+            `;
+            notification.innerHTML = '🔄 تم تحديث القائمة تلقائياً!';
+            
+            document.body.appendChild(notification);
+            
+            // Remove notification after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideUp 0.5s ease';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 500);
+            }, 3000);
+        }
 
         function openAdmin() {
             // Remove existing login modal if any
