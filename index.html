@@ -3293,9 +3293,16 @@
         
         // Sync images from database to localStorage on load
         function syncImagesFromDatabase() {
+            // Sync gallery images
             if (database.gallery && database.gallery.length > 0) {
                 localStorage.setItem('oudelle_gallery_images', JSON.stringify(database.gallery));
                 console.log('🖼️ Gallery images synced to localStorage');
+            }
+            
+            // Sync uploaded images
+            if (database.uploadedImages) {
+                localStorage.setItem('oudelle_uploaded_images', JSON.stringify(database.uploadedImages));
+                console.log('📸 Product images synced to localStorage');
             }
         }
         
