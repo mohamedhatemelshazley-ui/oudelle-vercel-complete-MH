@@ -2121,32 +2121,81 @@ function searchProducts(q) {
 
         // --- Admin Dashboard Logic ---
         function openAdmin() {
-            if (isCloudActive) {
-                const user = auth.currentUser;
-                if (user) {
-                    // Already logged in
-                    showAdminPanel();
-                } else {
-                    // Need to login
-                    const email = prompt("Email:");
-                    const pass = prompt("Password:");
-                    if (email && pass) {
-                        auth.signInWithEmailAndPassword(email, pass)
-                            .then(() => {
-                                alert("تم تسجيل الدخول بنجاح");
-                                showAdminPanel();
-                            })
-                            .catch((e) => alert("خطأ في الدخول: " + e.message));
-                    }
+            // Clear any existing prompts first
+            if (document.querySelector('.admin-login-overlay')) {
+                document.querySelector('.admin-login-overlay').remove();
+            }
+            
+            // Create custom login modal
+            const loginModal = document.createElement('div');
+            loginModal.className = 'admin-login-overlay';
+            loginModal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.8);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+                direction: rtl;
+            `;
+            
+            loginModal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 400px; width: 90%;">
+                    <h2 style="text-align: center; margin-bottom: 20px; color: var(--primary);">🎛️ تسجيل دخول الإدمن</h2>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">كلمة المرور:</label>
+                        <input type="password" id="admin-pass-input" style="width: 100%; padding: 12px; border: 2px solid var(--gold); border-radius: 8px; font-size: 16px; text-align: center;" placeholder="أدخل كلمة المرور" autofocus>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="confirmAdminLogin()" style="flex: 1; background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold;">دخول</button>
+                        <button onclick="cancelAdminLogin()" style="flex: 1; background: #dc3545; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 16px;">إلغاء</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(loginModal);
+            
+            // Focus on password input
+            setTimeout(() => {
+                const passInput = document.getElementById('admin-pass-input');
+                if (passInput) {
+                    passInput.focus();
+                    // Allow Enter key to submit
+                    passInput.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            confirmAdminLogin();
+                        }
+                    });
                 }
+            }, 100);
+        }
+
+        function confirmAdminLogin() {
+            const passInput = document.getElementById('admin-pass-input');
+            const password = passInput ? passInput.value : '';
+            
+            if (password === "55555") {
+                document.querySelector('.admin-login-overlay').remove();
+                showAdminPanel();
+                alert("✅ تم تسجيل الدخول بنجاح!");
             } else {
-                // Local Mode Fallback
-                const pass = prompt("يرجى إدخال كلمة المرور:");
-                if (pass === "55555") {
-                    showAdminPanel();
-                } else {
-                    alert("كلمة مرور خاطئة!");
-                }
+                passInput.style.borderColor = '#dc3545';
+                passInput.style.animation = 'shake 0.5s';
+                setTimeout(() => {
+                    passInput.style.borderColor = 'var(--gold)';
+                    passInput.style.animation = '';
+                }, 500);
+            }
+        }
+
+        function cancelAdminLogin() {
+            const loginModal = document.querySelector('.admin-login-overlay');
+            if (loginModal) {
+                loginModal.remove();
             }
         }
 
@@ -2165,13 +2214,6 @@ function searchProducts(q) {
                 document.getElementById('adm-ticker-text').value = database.settings.ticker;
             }
             document.getElementById('ramadan-toggle-btn').innerText = isRamadanMode ? "إبطال" : "تفعيل";
-        }
-
-        function resetOrderCounter() {
-            if (confirm("⚠️ هل أنت متأكد من تصفير تسلسل الطلبات؟ الطلب القادم سيبدأ برقم #1.")) {
-                localStorage.setItem('oudelle_order_counter', 0);
-                alert("✅ تم تصفير العداد بنجاح!");
-            }
         }
 
         function resetRevenue() {
@@ -2237,46 +2279,6 @@ function searchProducts(q) {
             renderCategories();
             render(currentCat);
             renderBestSellers();
-            renderGallery();
-
-            renderStats(); // Update admin stats if open
-            const h1 = document.querySelector('h1');
-            const logo = document.querySelector('.logo');
-            if (isRamadanMode) {
-                document.body.classList.add('ramadan-mode');
-                if (h1) h1.innerText = "oudélle ✨ رمضان كريم";
-                if (logo) logo.innerText = "oudélle ✨ رمضان كريم";
-            } else {
-                document.body.classList.remove('ramadan-mode');
-                if (h1) h1.innerText = "oudélle";
-                if (logo) logo.innerText = "oudélle";
-            }
-        }
-
-        // Sync Categories
-        renderCategories();
-        renderAdmCategoriesList();
-
-        if (isRamadanMode) {
-            initRamadanAtmosphere();
-        } else {
-            document.body.classList.remove('night-time');
-            const sky = document.getElementById('sky-overlay');
-            if (sky) sky.innerHTML = '';
-        }
-
-        const searchVal = document.querySelector('.search-bar').value;
-        if (searchVal) {
-            searchProducts(searchVal);
-        } else {
-            render(currentCat);
-            renderBestSellers();
-            renderGallery();
-        }
-
-        // --- Ramadan Atmosphere Logic ---
-        function initRamadanAtmosphere() {
-            if (!isRamadanMode) return;
             const sky = document.getElementById('sky-overlay');
             if (sky && sky.children.length === 0) {
                 for (let i = 0; i < 80; i++) {
@@ -3169,99 +3171,6 @@ function searchProducts(q) {
             }
         }
 
-        function renderAdmOrders() {
-            const list = document.getElementById('adm-orders-list');
-            if (!list) return;
-            const orders = database.orders || [];
-            if (orders.length === 0) return list.innerHTML = "<p style='padding:20px; text-align:center;'>لا يوجد طلبات مسجلة</p>";
-            
-            list.innerHTML = orders.map((o, i) => `
-                <div class="order-item-row">
-                    <div>
-                        <b>#${o.num}</b> | ${o.name} | ${o.total.toFixed(2)}ج
-                        <div style="font-size:0.75rem; color:#666;">${o.date}</div>
-                    </div>
-                    <button class="admin-btn" style="width:auto; padding:5px 10px; background:var(--primary);" onclick="admPrintReceipt(${i})">🖨️ طباعة</button>
-                </div>
-            `).join('');
-        }
-
-        function admPrintReceipt(idx) {
-            const o = database.orders[idx];
-            if (!o) return;
-
-            document.getElementById('receipt-date').innerText = o.date;
-            document.getElementById('receipt-num').innerText = `أوردر رقم #${o.num}`;
-            document.getElementById('receipt-total').innerText = `${o.total.toFixed(2)} ج`;
-            document.getElementById('receipt-items').innerHTML = o.items.map(it => `
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <span>${it.name}</span>
-                    <span>${it.price.toFixed(2)}</span>
-                </div>
-            `).join('');
-
-            let clientInfo = `العميل: ${o.name}<br>الهاتف: ${o.phone || '-'}`;
-            if (o.meth === 'delivery') clientInfo += `<br>العنوان: ${o.addr}`;
-            if (o.meth === 'dinein') clientInfo += `<br>الطاولة: ${o.table}`;
-            document.getElementById('receipt-client').innerHTML = clientInfo;
-
-            window.print();
-        }
-
-        // --- Mix Editor ---
-        function renderAdmMixEditor() {
-            const cont = document.getElementById('adm-mix-editor');
-            if (!cont) return;
-
-            for (let cat in database) {
-                if (Array.isArray(database[cat])) {
-                    database[cat].forEach((p, i) => { if (p.isMix) mixes.push({ ...p, cat, idx: i }); });
-                }
-            }
-
-            if (mixes.length === 0) return cont.innerHTML = "لا يوجد أصناف 'مكس' حالياً";
-
-            cont.innerHTML = mixes.map(m => {
-                // All items from source or all items database (better)
-                let allItems = [];
-                for (let cat in database) {
-                    if (Array.isArray(database[cat])) {
-                        database[cat].forEach(p => { if (!p.isMix) allItems.push(p.name); });
-                    }
-                }
-
-                const currentContents = m.contents || [];
-
-                return `
-                    <div style="margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:10px;">
-                        <h4>${m.title}</h4>
-                        <p style="font-size:0.8rem; color:#666;">اختر الأصناف التي تظهر داخل المحتوى (طعم في كل سطر):</p>
-                        <textarea id="mix-edit-${m.cat}-${m.idx}" style="width:100%; height:80px; font-size:0.85rem; padding:5px; border-radius:5px;"
-                                  onchange="admSaveMixContents('${m.cat}', ${m.idx}, this.value)">${currentContents.join('\n')}</textarea>
-                        <div style="font-size:0.7rem; color: #999; margin-top:5px;">* اترك النص فارغاً لاستخدام المصدر الافتراضي (${m.source})</div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function admSaveMixContents(cat, idx, val) {
-            const contents = val ? val.split('\n').filter(x => x.trim()).map(x => x.trim()) : null;
-            database[cat][idx].contents = contents;
-            saveAdminChanges();
-            alert("✅ تم حفظ محتويات المكس");
-            syncUI();
-        }
-
-        function saveAdminChanges() {
-            if (isCloudActive) {
-                db.collection('app').doc('data').set(database)
-                .then(() => console.log("🔥 Saved to Cloud"))
-                .catch((e) => alert("خطأ في الحفظ: " + e.message));
-            } else {
-                localStorage.setItem('oudelle_custom_database', JSON.stringify(database));
-            }
-        }
-
         // --- Image Upload Functions ---
         function handleHomeBgUpload(event) {
             const file = event.target.files[0];
@@ -3310,7 +3219,12 @@ function searchProducts(q) {
             }
         });
     </script>
-    <div class="admin-trigger" onclick="openAdmin()">⚙️</div>
+    <div class="admin-trigger" onclick="openAdmin()" style="position: fixed; bottom: 20px; left: 20px; background: var(--gold); color: white; padding: 10px 15px; border-radius: 50px; cursor: pointer; font-size: 20px; z-index: 9999; box-shadow: 0 4px 8px rgba(0,0,0,0.3); transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">⚙️</div>
+    <div style="position: fixed; top: 10px; right: 10px; z-index: 9999;">
+        <button onclick="openAdmin()" style="background: linear-gradient(135deg, var(--primary), var(--gold)); color: white; border: none; padding: 8px 16px; border-radius: 25px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+            🎛️ لوحة التحكم
+        </button>
+    </div>
     <!-- Thermal Receipt Template (Hidden) -->
     <div id="thermal-receipt">
         <center>
