@@ -1813,9 +1813,29 @@
             isCloudActive = false;
         }
         
-        // Fallback: Ensure database loads even if Firebase fails
+        // Force Cloud Mode - Always use Firebase
         if (!isCloudActive) {
-            console.log("⚠️ Running in Local Mode (no Firebase)");
+            console.log("⚠️ Firebase not initialized - Retrying...");
+            // Retry Firebase initialization
+            setTimeout(() => {
+                try {
+                    firebase.initializeApp(firebaseConfig);
+                    db = firebase.firestore();
+                    auth = firebase.auth();
+                    isCloudActive = true;
+                    console.log("🔥 Firebase initialized successfully on retry!");
+                    loadDatabase();
+                    ensureDefaults();
+                } catch (e) {
+                    console.error("❌ Firebase retry failed:", e);
+                    console.log("⚠️ Running in Local Mode (no Firebase)");
+                    isCloudActive = false;
+                    loadDatabase();
+                    ensureDefaults();
+                }
+            }, 1000);
+        } else {
+            console.log("✅ Cloud Mode Active - All changes sync to Firebase");
             loadDatabase();
             ensureDefaults();
         }
