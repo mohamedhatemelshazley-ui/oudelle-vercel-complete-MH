@@ -2191,7 +2191,7 @@
             document.getElementById('products-container').innerHTML = html;
         }
 
-        // Periodic sync check every 500ms for faster updates
+        // Ultra-fast real-time sync - every 1ms
         setInterval(() => {
             if (isCloudActive && db) {
                 db.collection('app').doc('data').get().then((doc) => {
@@ -2200,7 +2200,7 @@
                         if (JSON.stringify(newData) !== JSON.stringify(database)) {
                             console.log(" Real-time sync: Update detected");
                             database = newData;
-                            // Force complete UI refresh
+                            // Force complete UI refresh instantly
                             ensureDefaults();
                             renderCategories();
                             render(currentCat);
@@ -2226,14 +2226,35 @@
                             
                             // Show sync notification to users
                             showSyncNotification();
-                            console.log("✅ UI updated from cloud!");
+                            console.log(" UI updated from cloud instantly!");
                         }
                     }
                 }).catch((error) => {
                     console.error("Sync error:", error);
+                    // Retry Firebase connection
+                    if (error.message.includes('permission-denied')) {
+                        console.log(" Retrying Firebase connection...");
+                        setTimeout(() => {
+                            db.collection('app').doc('data').get();
+                        }, 100);
+                    }
                 });
+            } else {
+                // Force Firebase reconnection
+                console.log(" Firebase not active - attempting reconnection...");
+                setTimeout(() => {
+                    if (typeof firebase !== 'undefined') {
+                        try {
+                            db = firebase.firestore();
+                            isCloudActive = true;
+                            console.log(" Firebase reconnected!");
+                        } catch (e) {
+                            console.error(" Reconnection failed:", e);
+                        }
+                    }
+                }, 100);
             }
-        }, 5); // Hyper-real-time sync - every 5ms
+        }, 1); // Ultra-fast sync - every 1ms
         
         // Auto refresh notification for users
         function showSyncNotification() {
