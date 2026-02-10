@@ -2083,19 +2083,22 @@
                 if (event.data.type === 'database_update') {
                     console.log(" Received update from another tab");
                     database = event.data.data;
-                    renderCategories();
-                    render(currentCat);
-                    renderBestSellers();
-                    renderGallery();
-                    syncUI();
-                }
             };
         }
 
         function saveAdminChanges() {
             localStorage.setItem('oudelle_custom_database', JSON.stringify(database));
             
-            // Broadcast to other tabs
+            // Instant UI update BEFORE Firebase sync
+            ensureDefaults();
+            renderCategories();
+            render(currentCat);
+            renderBestSellers();
+            renderGallery();
+            syncUI();
+            showSyncNotification();
+            
+            // Broadcast to other tabs instantly
             if (broadcastChannel) {
                 broadcastChannel.postMessage({
                     type: 'database_update',
@@ -2114,70 +2117,38 @@
                 }
             }
             
-            // Real-time sync for all connected clients via Firebase
+            // Real-time sync for all connected clients via Firebase (async)
             if (isCloudActive && db) {
                 console.log("⚡ Syncing to cloud instantly...");
+                // Don't wait for Firebase - sync in background
                 db.collection('app').doc('data').set(database).then(() => {
                     console.log("⚡ Changes synced to cloud instantly!");
                     // Force refresh on other devices by updating timestamp
                     const timestamp = new Date().toISOString();
                     localStorage.setItem('oudelle_last_sync', timestamp);
-                    
-                    // Instant UI update for all clients
-                    ensureDefaults();
-                    renderCategories();
-                    render(currentCat);
-                    renderBestSellers();
-                    renderGallery();
-                    syncUI();
-                    showSyncNotification();
                 }).catch((error) => {
                     console.error(" Cloud sync error:", error);
-                    // Retry immediately
-                    setTimeout(() => {
-                        if (db) {
-                            db.collection('app').doc('data').set(database).then(() => {
-                                console.log("⚡ Retry sync successful!");
-                            });
-                        }
-                    }, 50);
+                    // Retry immediately without blocking
+                    if (db) {
+                        db.collection('app').doc('data').set(database).then(() => {
+                            console.log("⚡ Retry sync successful!");
+                        });
+                    }
                 });
             } else {
                 console.log("⚠️ Firebase not available - forcing reconnection...");
-                // Force Firebase initialization
+                // Force Firebase initialization without blocking
                 setTimeout(() => {
                     try {
                         if (typeof firebase !== 'undefined') {
                             db = firebase.firestore();
                             isCloudActive = true;
-                            saveAdminChanges(); // Retry save
                         }
                     } catch (e) {
                         console.error("❌ Force reconnection failed:", e);
                     }
-                }, 100);
+                }, 0);
             }
-        }
-
-        function showMenu() {
-            document.getElementById('home-page').style.display = 'none';
-            document.getElementById('menu-page').style.display = 'block';
-            document.body.scrollTop = 0;
-            renderCategories();
-            render(currentCat);
-            renderBestSellers();
-            renderGallery();
-        }
-
-        function showHome() {
-            document.getElementById('home-page').style.display = 'block';
-            document.getElementById('menu-page').style.display = 'none';
-            document.body.scrollTop = 0;
-        }
-
-        function toggleTheme() {
-            document.body.classList.toggle('dark-mode');
-            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
         }
 
         function searchProducts(q) {
