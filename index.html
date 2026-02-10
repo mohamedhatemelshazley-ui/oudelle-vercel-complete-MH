@@ -3245,38 +3245,57 @@
                     document.getElementById('home-bg-preview').innerHTML = 
                         `<img src="${dataUrl}" style="max-width:200px; max-height:150px; border-radius:10px; border:2px solid var(--gold);">
                          <p style="margin-top:5px; color:green;">✅ تم تحديث صورة الخلفية ومزامنتها</p>`;
-                }
-                
-                // Load saved home background on page load
-                window.addEventListener('load', function() {
-                    // Load from database first
-                    if (database.settings && database.settings.homeBackground) {
-                        const sliderBg = document.getElementById('slider-bg');
-                        sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no-repeat`;
-                    }
-                    // Fallback to localStorage
-                    const savedBg = localStorage.getItem('oudelle_home_bg');
-                    if (savedBg) {
-                        const sliderBg = document.getElementById('slider-bg');
-                        sliderBg.style.background = `url(${savedBg}) center center / cover no-repeat`;
-                    }
-                });
-                
-                // Sync images from database to localStorage on load
-                function syncImagesFromDatabase() {
-                    if (database.gallery && database.gallery.length > 0) {
-                        localStorage.setItem('oudelle_gallery_images', JSON.stringify(database.gallery));
-                        console.log('🖼️ Gallery images synced to localStorage');
-                    }
-                }
-                
-                // Call sync on load
-                syncImagesFromDatabase();
+                };
+                reader.readAsDataURL(file);
             }
         }
 
-        // Initialization
+        function handleProductImgUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dataUrl = e.target.result;
+                    // Generate unique filename
+                    const fileName = 'product_' + Date.now() + '_' + file.name;
+                    // Save to database for sync
+                    if (!database.uploadedImages) database.uploadedImages = {};
+                    database.uploadedImages[fileName] = dataUrl;
+                    saveAdminChanges();
+                    // Auto-fill the image input
+                    document.getElementById('adm-img').value = fileName;
+                    alert('✅ تم رفع الصورة ومزامنتها! اسم الملف: ' + fileName);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Load saved home background on page load
+        window.addEventListener('load', function() {
+            // Load from database first
+            if (database.settings && database.settings.homeBackground) {
+                const sliderBg = document.getElementById('slider-bg');
+                sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no-repeat`;
+            }
+            // Fallback to localStorage
+            const savedBg = localStorage.getItem('oudelle_home_bg');
+            if (savedBg) {
+                const sliderBg = document.getElementById('slider-bg');
+                sliderBg.style.background = `url(${savedBg}) center center / cover no-repeat`;
+            }
+        });
+        
+        // Sync images from database to localStorage on load
+        function syncImagesFromDatabase() {
+            if (database.gallery && database.gallery.length > 0) {
+                localStorage.setItem('oudelle_gallery_images', JSON.stringify(database.gallery));
+                console.log('🖼️ Gallery images synced to localStorage');
+            }
+        }
+        
+        // Call sync on load
         document.addEventListener('DOMContentLoaded', function() {
+            syncImagesFromDatabase();
             setTimeout(function() {
                 console.log('🚀 Initializing app...');
                 ensureDefaults();
@@ -3318,23 +3337,6 @@
             <p>شكراً لزيارتكم! ❤️</p>
         </center>
     </div>
-
-    <!-- Initialization -->
-    <script>
-        // Ensure products display on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(function() {
-                console.log('🚀 Initializing app...');
-                ensureDefaults();
-                renderCategories();
-                render(currentCat);
-                renderBestSellers();
-                renderGallery();
-                syncUI();
-                console.log('✅ App initialized!');
-            }, 200);
-        });
-    </script>
 
 </body>
 
