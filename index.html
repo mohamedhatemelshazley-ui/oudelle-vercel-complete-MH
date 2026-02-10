@@ -1946,6 +1946,15 @@
                     renderBestSellers();
                     renderGallery();
                     syncUI();
+                    
+                    // Apply Ramadan mode from cloud
+                    if (database.settings && database.settings.isRamadanMode !== undefined) {
+                        isRamadanMode = database.settings.isRamadanMode;
+                        localStorage.setItem('oudelle_ramadan', isRamadanMode);
+                        document.body.classList.toggle('ramadan-mode', isRamadanMode);
+                        const btn = document.getElementById('ramadan-toggle-btn');
+                        if (btn) btn.innerText = isRamadanMode ? "إبطال" : "تفعيل";
+                    }
 
                     if (document.getElementById('adminModal').style.display === 'flex') {
                         renderAdmCategoriesList();
@@ -2998,7 +3007,10 @@
 
         function toggleRamadanMode() {
             isRamadanMode = !isRamadanMode;
-            localStorage.setItem('oudelle_ramadan', isRamadanMode);
+            // Save to database for cloud sync
+            if (!database.settings) database.settings = {};
+            database.settings.isRamadanMode = isRamadanMode;
+            saveAdminChanges();
             document.getElementById('ramadan-toggle-btn').innerText = isRamadanMode ? "إبطال" : "تفعيل";
             document.body.classList.toggle('ramadan-mode', isRamadanMode);
             syncUI();
