@@ -2000,88 +2000,57 @@
                     renderAdmAreas();
                     renderAdmMixEditor();
                     renderAdmOrders();
+                    renderStats();
                 }
+                
+                // Show notification to clients
+                showUpdateNotification();
             }
         });
 
-        // Real-time Cloud Synchronization
-        if (isCloudActive && db) {
-            // Listen for real-time updates from Firebase
-            db.collection('app').doc('data').onSnapshot((doc) => {
-                if (doc.exists) {
-                    const newData = doc.data();
-                    if (JSON.stringify(newData) !== JSON.stringify(database)) {
-                        console.log("🔄 Real-time update detected from cloud");
-                        database = newData;
-                        
-                        // Update all UI components
-                        renderCategories();
-                        if (!database.categories.find(c => c.id === currentCat)) {
-                            currentCat = database.categories[0]?.id || 'oriental';
-                        }
-                        render(currentCat);
-                        renderBestSellers();
-                        renderGallery();
-                        syncUI();
-                        
-                        // Update Admin UI if open
-                        if (document.getElementById('adminModal').style.display === 'flex') {
-                            renderAdmCategoriesList();
-                            renderAdmTabs();
-                            if (!database.categories.find(c => c.id === admCurrentCat)) {
-                                admCurrentCat = database.categories[0]?.id || 'oriental';
-                            }
-                            renderAdmTable();
-                            renderAdmVouchers();
-                            renderAdmAreas();
-                            renderAdmMixEditor();
-                            renderAdmOrders();
-                            renderStats();
-                        }
-                        
-                        // Show notification to clients
-                        showUpdateNotification();
-                    }
+        // Cross-tab sync using BroadcastChannel (modern browsers)
+        let broadcastChannel = null;
+        if (typeof BroadcastChannel !== 'undefined') {
+            broadcastChannel = new BroadcastChannel('oudelle_sync');
+            broadcastChannel.onmessage = (event) => {
+                if (event.data.type === 'database_update') {
+                    console.log(" Received update from another tab");
+                    database = event.data.data;
+                    renderCategories();
+                    render(currentCat);
+                    renderBestSellers();
+                    renderGallery();
+                    syncUI();
                 }
-            }, (error) => {
-                console.error("❌ Real-time listener error:", error);
-            });
+            };
         }
 
-        // Auto-refresh mechanism for clients
-        function showUpdateNotification() {
-            // Create notification element
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: linear-gradient(135deg, var(--primary), var(--gold));
-                color: white;
-                padding: 15px 25px;
-                border-radius: 50px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                z-index: 10000;
-                font-weight: bold;
-                animation: slideDown 0.5s ease;
-            `;
-            notification.innerHTML = '🔄 تم تحديث القائمة! جاري التحديث تلقائياً...';
+        function saveAdminChanges() {
+            localStorage.setItem('oudelle_custom_database', JSON.stringify(database));
             
-            document.body.appendChild(notification);
+            // Broadcast to other tabs
+            if (broadcastChannel) {
+                broadcastChannel.postMessage({
+                    type: 'database_update',
+                    data: database
+                });
+            }
             
-            // Auto-remove after 3 seconds
-            setTimeout(() => {
-                notification.style.animation = 'slideUp 0.5s ease';
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.parentNode.removeChild(notification);
-                    }
-                }, 500);
-            }, 3000);
+            // Real-time sync for all connected clients via Firebase
+            if (isCloudActive && db) {
+                console.log(" Syncing to cloud...");
+                db.collection('app').doc('data').set(database).then(() => {
+                    console.log(" Changes synced to cloud successfully!");
+                }).catch((error) => {
+                    console.error(" Cloud sync error:", error);
+                    alert(" لم يتم الحفظ في السحابة. جاري الحفظ محلياً فقط.");
+                });
+            } else {
+                console.log(" Saved to localStorage only (cloud not available)");
+            }
         }
 
-function showMenu() {
+        function showMenu() {
             document.getElementById('home-page').style.display = 'none';
             document.getElementById('menu-page').style.display = 'block';
             document.body.scrollTop = 0;
@@ -2091,143 +2060,84 @@ function showMenu() {
             renderGallery();
         }
 
-function showHome() {
+        function showHome() {
             document.getElementById('home-page').style.display = 'block';
             document.getElementById('menu-page').style.display = 'none';
             document.body.scrollTop = 0;
         }
 
-function toggleTheme() {
-document.body.classList.toggle('dark-mode');
-localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
-}
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        }
 
-function searchProducts(q) {
+        function searchProducts(q) {
             if (!q) return render(currentCat);
             let html = "";
             let found = false;
             const uploadedImages = JSON.parse(localStorage.getItem('oudelle_uploaded_images') || '{}');
 
             for (let cat in database) {
+                if (cat === 'categories' || cat === 'stats' || cat === 'gallery' || cat === 'orders' || cat === 'settings' || cat === 'vouchers' || cat === 'delivery') continue;
                 database[cat].forEach((p, i) => {
                     const isSoldOut = p.inStock === false;
                     const hasDiscount = p.isDiscount || (p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price));
                     const discountHTML = hasDiscount ? `<div class="discount-status-badge">عرض خاص / خصم </div>` : "";
-
-                    // Check if image exists in uploaded images or use placeholder
-                    let imgSrc = p.img || `https://via.placeholder.com/300x200?text=${p.name}`;
-                    if (p.img && uploadedImages[p.img]) {
-                        imgSrc = uploadedImages[p.img];
-                    }
-
-                    const vipHTML = p.isVIP ? `<div class="vip-badge">الشيف يرشحه </div>` : "";
-
-                    if (!p.isMix && p.name.includes(q)) {
+                    if (p.name.toLowerCase().includes(q.toLowerCase())) {
                         found = true;
-
-                        const optionsHTML = (p.options && p.options.length)
-                            ? `<select id="so-${cat}-${i}" class="weight-select" ${isSoldOut ? 'disabled' : ''}>${p.options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`
-                            : "";
-
-                        if (p.type === 'kg') {
-                            if (!p.price) return;
-                            let displayPrice = (p.price / 4).toFixed(2);
-                            let oldDisplayPrice = p.oldPrice ? (p.oldPrice / 4).toFixed(2) : null;
-                            const oldPriceHTML = oldDisplayPrice ? `<div class="old-price-display"><span class="price-strike-small">${oldDisplayPrice} ج</span></div>` : "";
-
-                            let weightOptions = `<option value="0.25">250جم</option><option value="0.5">500جم</option><option value="1" selected>1 كيلو</option>`;
-                            html += `<div class="card ${isSoldOut ? 'sold-out' : ''}" style="position:relative;"><img src="${imgSrc}"><h3>${p.name}</h3>` +
-                                `${discountHTML}${oldPriceHTML}<span class="price-badge">${displayPrice} ج/ربع كيلو</span>` +
-                                `${optionsHTML}<select id="s-w-${cat}-${i}" class="weight-select">${weightOptions}</select><button class="add-btn" onclick="addKgSearch('${cat}',${i})">إضافة</button></div>`;
-                        } else {
-                            if (!p.price) return;
-                            const oldPriceHTML = p.oldPrice ? `<div class="old-price-display"><span class="price-strike-small">${p.oldPrice} ج</span></div>` : "";
-                            html += `<div class="card ${isSoldOut ? 'sold-out' : ''}" style="position:relative;"><img src="${imgSrc}"><h3>${p.name}</h3>` +
-                                `${discountHTML}${oldPriceHTML}<span class="price-badge">${p.price} ج.م</span>` +
-                                `${optionsHTML}<input type="number" id="s-q-${cat}-${i}" class="weight-select" value="1" min="1"><button class="add-btn" onclick="addPieceSearch('${cat}',${i})">إضافة</button></div>`;
-                        }
+                        html += `
+                            <div class="product-card">
+                                <div class="product-image">
+                                    <img src="${uploadedImages[p.img] || p.img}" alt="${p.name}">
+                                </div>
+                                <div class="product-info">
+                                    <h3>${p.name}</h3>
+                                    <p>${p.price} ${p.type}</p>
+                                    ${discountHTML}
+                                    ${isSoldOut ? '<div class="sold-out-badge">نفذ</div>' : ''}
+                                </div>
+                                <div class="product-actions">
+                                    <button class="add-to-cart" onclick="addToCart('${cat}', ${i})">أضف إلى السلة</button>
+                                </div>
+                            </div>
+                        `;
                     }
                 });
             }
-            document.getElementById('product-grid').innerHTML = found ? html : "<p style='text-align:center; width:100%;'>لا توجد نتائج</p>";
-        }
 
-        function addKgSearch(cat, i) {
-            const p = database[cat][i], s = document.getElementById(`s-w-${cat}-${i}`);
-            const opt = document.getElementById(`so-${cat}-${i}`);
-            const variation = opt ? opt.value : "";
-            addToCart(p.name, parseFloat(s.value) * p.price, `${s.options[s.selectedIndex].text}${variation ? ' - ' + variation : ''}`);
-        }
-        function addPieceSearch(cat, i) {
-            const p = database[cat][i], q = document.getElementById(`s-q-${cat}-${i}`).value;
-            const opt = document.getElementById(`so-${cat}-${i}`);
-            const variation = opt ? opt.value : "";
-            addToCart(p.name, q * p.price, `${q} قطعة${variation ? ' - ' + variation : ''}`);
-        }
-
-        function addMix(title) {
-            let subs = document.querySelectorAll('.mix-sub'), details = [], total = 0;
-            subs.forEach(s => {
-                if (s.value > 0) {
-                    let w = parseFloat(s.value), p = parseFloat(s.dataset.price);
-                    details.push(`${s.dataset.name} (${w}جم)`);
-                    total += (w / 1000) * p;
-                }
-            });
-            if (details.length) { addToCart(`${title}: ${details.join(' + ')}`, total); alert("تمت إضافة العلبة"); }
-        }
-
-        function addKg(cat, i) {
-            const p = database[cat][i], s = document.getElementById(`w-${cat}-${i}`);
-            const opt = document.getElementById(`o-${cat}-${i}`);
-            const variation = opt ? opt.value : "";
-            addToCart(p.name, parseFloat(s.value) * p.price, `${s.options[s.selectedIndex].text}${variation ? ' - ' + variation : ''}`);
-        }
-        function addPiece(cat, i) {
-            const p = database[cat][i], q = document.getElementById(`q-${cat}-${i}`).value;
-            const opt = document.getElementById(`o-${cat}-${i}`);
-            const variation = opt ? opt.value : "";
-            addToCart(p.name, q * p.price, `${q} قطعة${variation ? ' - ' + variation : ''}`);
-        }
-
-        function addToCart(name, price, titleSuffix = "") {
-            cart.push({ name: name + (titleSuffix ? ` (${titleSuffix})` : ""), price: price });
-            saveCart();
-            updateUI();
-            const btn = document.getElementById('cart-btn');
-            btn.classList.add('animate__animated', 'animate__rubberBand');
-            setTimeout(() => btn.classList.remove('animate__animated', 'animate__rubberBand'), 1000);
-        }
-
-        function updateUI() { document.getElementById('cart-count').innerText = cart.length; }
-        function saveCart() { localStorage.setItem('oudelle_cart', JSON.stringify(cart)); }
-
-        function showCart() {
-            const m = document.getElementById('cartModal');
-            m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
-            if (m.style.display === 'flex') {
-                document.getElementById('cart-list').innerHTML = cart.map((it, i) => `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px;">${it.name} <span>${it.price.toFixed(2)} ج <button onclick="remove(${i})" style="color:red; border:none; background:none; cursor:pointer;">🗑️</button></span></div>`).join('');
-                updateTotal();
+            if (!found) {
+                html = '<h2>لم يتم العثور على نتائج</h2>';
             }
+
+            document.getElementById('products-container').innerHTML = html;
         }
 
-        function remove(i) { cart.splice(i, 1); saveCart(); updateUI(); showCart(); }
+        // Periodic sync check every 5 seconds for Firebase
+        setInterval(() => {
+            if (isCloudActive && db) {
+                db.collection('app').doc('data').get().then((doc) => {
+                    if (doc.exists) {
+                        const newData = doc.data();
+                        if (JSON.stringify(newData) !== JSON.stringify(database)) {
+                            console.log(" Periodic sync: Update detected");
+                            database = newData;
+                            renderCategories();
+                            render(currentCat);
+                            renderBestSellers();
+                            renderGallery();
+                            syncUI();
+                        }
+                    }
+                }).catch((error) => {
+                    console.error(" Periodic sync error:", error);
+                });
+            }
+        }, 5000);
 
-        function copyNumber() { navigator.clipboard.writeText("01023728183"); alert("تم نسخ الرقم!"); }
-        function selectTable(n, el) {
-            document.querySelectorAll('.table-card').forEach(s => s.classList.remove('selected'));
-            el.classList.add('selected');
-            el.classList.add('animate__animated', 'animate__pulse');
-            setTimeout(() => el.classList.remove('animate__animated', 'animate__pulse'), 1000);
-            selectedTableNumber = n;
-        }
-
-        // --- Admin Dashboard Logic ---
         function openAdmin() {
-            // Clear any existing prompts first
-            if (document.querySelector('.admin-login-overlay')) {
-                document.querySelector('.admin-login-overlay').remove();
-            }
+            // Remove existing login modal if any
+            const existingModal = document.querySelector('.admin-login-overlay');
+            if (existingModal) existingModal.remove();
             
             // Create custom login modal
             const loginModal = document.createElement('div');
@@ -3095,7 +3005,7 @@ function searchProducts(q) {
             const list = document.getElementById('adm-gallery-list');
             if (list) {
                 list.innerHTML = (database.gallery || []).map((url, i) => `
-            < div style = "position:relative; flex-shrink:0;" >
+            <div style="position:relative; flex-shrink:0;">
                 <img src="${url}" style="width:50px; height:50px; object-fit:cover; border-radius:5px;">
                     <button onclick="admDeleteGallery(${i})" style="position:absolute; top:0; right:0; background:red; color:white; border:none; border-radius:50%; width:18px; height:18px; cursor:pointer; font-size:10px;">×</button>
                 </div>
@@ -3107,7 +3017,7 @@ function searchProducts(q) {
             const cont = document.getElementById('customer-gallery');
             if (cont) {
                 cont.innerHTML = (database.gallery || []).map(url => `
-            < div class="gallery-item animate__animated animate__zoomIn" >
+            <div class="gallery-item animate__animated animate__zoomIn">
                 <img src="${url}" loading="lazy">
                 </div>
         `).join('');
