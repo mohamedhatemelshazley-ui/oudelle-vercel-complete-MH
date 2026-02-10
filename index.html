@@ -1752,12 +1752,12 @@
     <script>
         // --- FIREBASE CONFIGURATION ---
         const firebaseConfig = {
-            // apiKey: "AIzaSyBkZ7l2m3n4o5p6q7r8s9t0u1v2w3x4y5z",
-            // authDomain: "oudelle-app.firebaseapp.com",
-            // projectId: "oudelle-app",
-            // storageBucket: "oudelle-app.appspot.com",
-            // messagingSenderId: "123456789012",
-            // appId: "1:123456789012:web:abcdef1234567890abcdef12"
+            apiKey: "AIzaSyBkZ7l2m3n4o5p6q7r8s9t0u1v2w3x4y5z",
+            authDomain: "oudelle-app.firebaseapp.com",
+            projectId: "oudelle-app",
+            storageBucket: "oudelle-app.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef1234567890abcdef12"
         };
 
         let db, auth;
@@ -3158,6 +3158,15 @@ function searchProducts(q) {
 
         function saveAdminChanges() {
             localStorage.setItem('oudelle_custom_database', JSON.stringify(database));
+            
+            // Real-time sync for all connected clients
+            if (isCloudActive && db) {
+                db.collection('app').doc('data').set(database).then(() => {
+                    console.log("🔥 Changes synced to cloud");
+                }).catch((error) => {
+                    console.error("❌ Cloud sync error:", error);
+                });
+            }
         }
 
         function renderAdmOrders() {
