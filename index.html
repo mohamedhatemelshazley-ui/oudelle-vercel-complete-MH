@@ -136,7 +136,8 @@
         }
 
         #home-page {
-            height: 100vh;
+            min-height: 100vh;
+            min-height: 100dvh; /* Dynamic viewport height for mobile browsers */
             position: relative;
             display: flex;
             flex-direction: column;
@@ -145,6 +146,8 @@
             color: white;
             text-align: center;
             overflow: hidden;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .slider-bg {
@@ -155,10 +158,8 @@
             height: 100%;
             z-index: -1;
             background-size: cover;
-            background-position: center;
+            background-position: center center;
             background-repeat: no-repeat;
-            background-attachment: fixed;
-            object-fit: cover;
         }
 
         .hero-content {
@@ -3275,8 +3276,9 @@ function searchProducts(q) {
                     const dataUrl = e.target.result;
                     // Save to localStorage
                     localStorage.setItem('oudelle_home_bg', dataUrl);
-                    // Apply immediately
-                    document.getElementById('slider-bg').style.backgroundImage = `url(${dataUrl})`;
+                    // Apply immediately - replace background entirely
+                    const sliderBg = document.getElementById('slider-bg');
+                    sliderBg.style.background = `url(${dataUrl}) center center / cover no-repeat`;
                     // Show preview
                     document.getElementById('home-bg-preview').innerHTML = 
                         `<img src="${dataUrl}" style="max-width:200px; max-height:150px; border-radius:10px; border:2px solid var(--gold);">
@@ -3310,7 +3312,8 @@ function searchProducts(q) {
         window.addEventListener('load', function() {
             const savedBg = localStorage.getItem('oudelle_home_bg');
             if (savedBg) {
-                document.getElementById('slider-bg').style.backgroundImage = `url(${savedBg})`;
+                const sliderBg = document.getElementById('slider-bg');
+                sliderBg.style.background = `url(${savedBg}) center center / cover no-repeat`;
             }
         });
     </script>
