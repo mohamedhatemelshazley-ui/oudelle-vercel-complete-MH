@@ -2221,14 +2221,20 @@
             document.getElementById('products-container').innerHTML = html;
         }
 
-        // Ultra-fast real-time sync - every 1ms
-        setInterval(() => {
+        // WebSocket-like instant sync - multiple parallel checks
+        const instantSync = () => {
             if (isCloudActive && db) {
-                db.collection('app').doc('data').get().then((doc) => {
+                // Parallel Firebase requests for maximum speed
+                Promise.all([
+                    db.collection('app').doc('data').get(),
+                    db.collection('app').doc('data').get(),
+                    db.collection('app').doc('data').get()
+                ]).then(([doc1, doc2, doc3]) => {
+                    const doc = doc1; // Use first result
                     if (doc.exists) {
                         const newData = doc.data();
                         if (JSON.stringify(newData) !== JSON.stringify(database)) {
-                            console.log(" Real-time sync: Update detected");
+                            console.log("⚡ Instant sync: Update detected");
                             database = newData;
                             // Force complete UI refresh instantly
                             ensureDefaults();
@@ -2256,35 +2262,42 @@
                             
                             // Show sync notification to users
                             showSyncNotification();
-                            console.log(" UI updated from cloud instantly!");
+                            console.log("⚡ UI updated from cloud instantly!");
                         }
                     }
                 }).catch((error) => {
                     console.error("Sync error:", error);
-                    // Retry Firebase connection
-                    if (error.message.includes('permission-denied')) {
-                        console.log(" Retrying Firebase connection...");
-                        setTimeout(() => {
-                            db.collection('app').doc('data').get();
-                        }, 100);
+                    // Retry Firebase connection immediately
+                    if (db) {
+                        db.collection('app').doc('data').get().then(() => {
+                            console.log("⚡ Retry sync successful!");
+                        });
                     }
                 });
             } else {
-                // Force Firebase reconnection
-                console.log(" Firebase not active - attempting reconnection...");
-                setTimeout(() => {
-                    if (typeof firebase !== 'undefined') {
-                        try {
-                            db = firebase.firestore();
-                            isCloudActive = true;
-                            console.log(" Firebase reconnected!");
-                        } catch (e) {
-                            console.error(" Reconnection failed:", e);
-                        }
+                // Force Firebase reconnection immediately
+                if (typeof firebase !== 'undefined') {
+                    try {
+                        db = firebase.firestore();
+                        isCloudActive = true;
+                        console.log("🔥 Firebase reconnected instantly!");
+                    } catch (e) {
+                        console.error("❌ Reconnection failed:", e);
                     }
-                }, 100);
+                }
             }
-        }, 0); // Instant sync - every 0ms (no delay)
+        };
+        
+        // Run instant sync continuously
+        instantSync();
+        setInterval(instantSync, 0);
+        
+        // Also run on every animation frame for maximum responsiveness
+        const animationFrameSync = () => {
+            instantSync();
+            requestAnimationFrame(animationFrameSync);
+        };
+        requestAnimationFrame(animationFrameSync);
         
         // Auto refresh notification for users
         function showSyncNotification() {
