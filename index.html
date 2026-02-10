@@ -3234,59 +3234,61 @@
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const dataUrl = e.target.result;
-                    // Save to localStorage
-                    localStorage.setItem('oudelle_home_bg', dataUrl);
+                    // Save to database for sync
+                    if (!database.settings) database.settings = {};
+                    database.settings.homeBackground = dataUrl;
+                    saveAdminChanges();
                     // Apply immediately - replace background entirely
                     const sliderBg = document.getElementById('slider-bg');
                     sliderBg.style.background = `url(${dataUrl}) center center / cover no-repeat`;
                     // Show preview
                     document.getElementById('home-bg-preview').innerHTML = 
                         `<img src="${dataUrl}" style="max-width:200px; max-height:150px; border-radius:10px; border:2px solid var(--gold);">
-                         <p style="margin-top:5px; color:green;">✅ تم تحديث صورة الخلفية</p>`;
-                };
-                reader.readAsDataURL(file);
+                         <p style="margin-top:5px; color:green;">✅ تم تحديث صورة الخلفية ومزامنتها</p>`;
+                }
+                
+                // Load saved home background on page load
+                window.addEventListener('load', function() {
+                    // Load from database first
+                    if (database.settings && database.settings.homeBackground) {
+                        const sliderBg = document.getElementById('slider-bg');
+                        sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no-repeat`;
+                    }
+                    // Fallback to localStorage
+                    const savedBg = localStorage.getItem('oudelle_home_bg');
+                    if (savedBg) {
+                        const sliderBg = document.getElementById('slider-bg');
+                        sliderBg.style.background = `url(${savedBg}) center center / cover no-repeat`;
+                    }
+                });
+                
+                // Sync images from database to localStorage on load
+                function syncImagesFromDatabase() {
+                    if (database.gallery && database.gallery.length > 0) {
+                        localStorage.setItem('oudelle_gallery_images', JSON.stringify(database.gallery));
+                        console.log('🖼️ Gallery images synced to localStorage');
+                    }
+                }
+                
+                // Call sync on load
+                syncImagesFromDatabase();
             }
         }
 
-        function handleProductImgUpload(event) {
-            const file = event.target.files[0];
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const dataUrl = e.target.result;
-                    // Generate unique filename
-                    const fileName = 'product_' + Date.now() + '_' + file.name;
-                    // Save to localStorage
-                    let uploadedImages = JSON.parse(localStorage.getItem('oudelle_uploaded_images') || '{}');
-                    uploadedImages[fileName] = dataUrl;
-                    localStorage.setItem('oudelle_uploaded_images', JSON.stringify(uploadedImages));
-                    // Auto-fill the image input
-                    document.getElementById('adm-img').value = fileName;
-                    alert('✅ تم رفع الصورة بنجاح! اسم الملف: ' + fileName);
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        // Load saved home background on page load
-        window.addEventListener('load', function() {
-            const savedBg = localStorage.getItem('oudelle_home_bg');
-            if (savedBg) {
-                const sliderBg = document.getElementById('slider-bg');
-                sliderBg.style.background = `url(${savedBg}) center center / cover no-repeat`;
-            }
+        // Initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                console.log('🚀 Initializing app...');
+                ensureDefaults();
+                renderCategories();
+                render(currentCat);
+                renderBestSellers();
+                renderGallery();
+                syncUI();
+                console.log('✅ App initialized!');
+            }, 200);
         });
-        
-        // Sync images from database to localStorage on load
-        function syncImagesFromDatabase() {
-            if (database.gallery && database.gallery.length > 0) {
-                localStorage.setItem('oudelle_gallery_images', JSON.stringify(database.gallery));
-                console.log('🖼️ Gallery images synced to localStorage');
-            }
-        }
-        
-        // Call sync on load
-        syncImagesFromDatabase();
+
     </script>
     <div class="admin-trigger" onclick="openAdmin()" style="position: fixed; bottom: 20px; left: 20px; background: var(--gold); color: white; padding: 10px 15px; border-radius: 50px; cursor: pointer; font-size: 20px; z-index: 9999; box-shadow: 0 4px 8px rgba(0,0,0,0.3); transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">⚙️</div>
     <div style="position: fixed; top: 10px; right: 10px; z-index: 9999;">
