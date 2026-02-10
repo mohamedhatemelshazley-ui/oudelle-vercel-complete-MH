@@ -3098,7 +3098,7 @@
             const sec = document.getElementById('best-sellers-section');
             if (all.length > 0) {
                 sec.classList.remove('hidden');
-                const uploadedImages = JSON.parse(localStorage.getItem('oudelle_uploaded_images') || '{}');
+                const uploadedImages = database.uploadedImages || {};
                 document.getElementById('best-sellers-grid').innerHTML = all.map(p => {
                     // Check if image exists in uploaded images or use placeholder
                     let imgSrc = p.img || 'https://via.placeholder.com/80';
