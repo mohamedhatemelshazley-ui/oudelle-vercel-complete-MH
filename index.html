@@ -2096,98 +2096,99 @@
                     database = event.data.data;
                 };
             }
+        }
 
-            function saveAdminChanges() {
-                localStorage.setItem('oudelle_custom_database', JSON.stringify(database));
+        function saveAdminChanges() {
+            localStorage.setItem('oudelle_custom_database', JSON.stringify(database));
 
-                // ZERO-TIME EXECUTION - IMMEDIATE UI update
-                const startTime = performance.now();
+            // ZERO-TIME EXECUTION - IMMEDIATE UI update
+            const startTime = performance.now();
 
-                // SYNCHRONOUS DOM updates - ZERO WAITING
-                ensureDefaults();
-                renderCategories();
-                render(currentCat);
-                renderBestSellers();
-                renderGallery();
-                syncUI();
-                showSyncNotification();
+            // SYNCHRONOUS DOM updates - ZERO WAITING
+            ensureDefaults();
+            renderCategories();
+            render(currentCat);
+            renderBestSellers();
+            renderGallery();
+            syncUI();
+            showSyncNotification();
 
-                // Force browser to render immediately
-                if (typeof document !== 'undefined' && document.body) {
-                    document.body.offsetHeight; // Force reflow
-                }
+            // Force browser to render immediately
+            if (typeof document !== 'undefined' && document.body) {
+                document.body.offsetHeight; // Force reflow
+            }
 
-                const renderTime = performance.now() - startTime;
-                console.log(` UI rendered in ${renderTime.toFixed(2)}ms - ZERO-TIME EXECUTION!`);
+            const renderTime = performance.now() - startTime;
+            console.log(` UI rendered in ${renderTime.toFixed(2)}ms - ZERO-TIME EXECUTION!`);
 
-                // Broadcast to other tabs instantly
-                if (broadcastChannel) {
-                    broadcastChannel.postMessage({
-                        type: 'database_update',
-                        data: database
-                    });
-                }
+            // Broadcast to other tabs instantly
+            if (broadcastChannel) {
+                broadcastChannel.postMessage({
+                    type: 'database_update',
+                    data: database
+                });
+            }
 
-                // Force Internet Mode - Always use Firebase
-                if (typeof firebase !== 'undefined' && !db) {
-                    try {
-                        db = firebase.firestore();
-                        isCloudActive = true;
-                        console.log("🔥 Firebase re-initialized!");
-                    } catch (e) {
-                        console.error("❌ Firebase re-init failed:", e);
-                    }
-                }
-
-                // Real-time sync for all connected clients via Firebase (async)
-                if (isCloudActive && db) {
-                    console.log("⚡ Syncing to cloud instantly...");
-                    // Don't wait for Firebase - sync in background
-                    db.collection('app').doc('data').set(database).then(() => {
-                        console.log("⚡ Changes synced to cloud instantly!");
-                        // Force refresh on other devices by updating timestamp
-                        const timestamp = new Date().toISOString();
-                        localStorage.setItem('oudelle_last_sync', timestamp);
-                    }).catch((error) => {
-                        console.error(" Cloud sync error:", error);
-                        // Retry immediately without blocking
-                        if (db) {
-                            db.collection('app').doc('data').set(database).then(() => {
-                                console.log("⚡ Retry sync successful!");
-                            });
-                        }
-                    });
-                } else {
-                    console.log("⚠️ Firebase not available - forcing reconnection...");
-                    // Force Firebase initialization without blocking
-                    setTimeout(() => {
-                        try {
-                            if (typeof firebase !== 'undefined') {
-                                db = firebase.firestore();
-                                isCloudActive = true;
-                            }
-                        } catch (e) {
-                            console.error("❌ Force reconnection failed:", e);
-                        }
-                    }, 0);
+            // Force Internet Mode - Always use Firebase
+            if (typeof firebase !== 'undefined' && !db) {
+                try {
+                    db = firebase.firestore();
+                    isCloudActive = true;
+                    console.log("🔥 Firebase re-initialized!");
+                } catch (e) {
+                    console.error("❌ Firebase re-init failed:", e);
                 }
             }
 
-            function searchProducts(q) {
-                if (!q) return render(currentCat);
-                let html = "";
-                let found = false;
-                const uploadedImages = database.uploadedImages || {};
+            // Real-time sync for all connected clients via Firebase (async)
+            if (isCloudActive && db) {
+                console.log("⚡ Syncing to cloud instantly...");
+                // Don't wait for Firebase - sync in background
+                db.collection('app').doc('data').set(database).then(() => {
+                    console.log("⚡ Changes synced to cloud instantly!");
+                    // Force refresh on other devices by updating timestamp
+                    const timestamp = new Date().toISOString();
+                    localStorage.setItem('oudelle_last_sync', timestamp);
+                }).catch((error) => {
+                    console.error(" Cloud sync error:", error);
+                    // Retry immediately without blocking
+                    if (db) {
+                        db.collection('app').doc('data').set(database).then(() => {
+                            console.log("⚡ Retry sync successful!");
+                        });
+                    }
+                });
+            } else {
+                console.log("⚠️ Firebase not available - forcing reconnection...");
+                // Force Firebase initialization without blocking
+                setTimeout(() => {
+                    try {
+                        if (typeof firebase !== 'undefined') {
+                            db = firebase.firestore();
+                            isCloudActive = true;
+                        }
+                    } catch (e) {
+                        console.error("❌ Force reconnection failed:", e);
+                    }
+                }, 0);
+            }
+        }
 
-                for (let cat in database) {
-                    if (cat === 'categories' || cat === 'stats' || cat === 'gallery' || cat === 'orders' || cat === 'settings' || cat === 'vouchers' || cat === 'delivery') continue;
-                    database[cat].forEach((p, i) => {
-                        const isSoldOut = p.inStock === false;
-                        const hasDiscount = p.isDiscount || (p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price));
-                        const discountHTML = hasDiscount ? `<div class="discount-status-badge">عرض خاص / خصم </div>` : "";
-                        if (p.name.toLowerCase().includes(q.toLowerCase())) {
-                            found = true;
-                            html += `
+        function searchProducts(q) {
+            if (!q) return render(currentCat);
+            let html = "";
+            let found = false;
+            const uploadedImages = database.uploadedImages || {};
+
+            for (let cat in database) {
+                if (cat === 'categories' || cat === 'stats' || cat === 'gallery' || cat === 'orders' || cat === 'settings' || cat === 'vouchers' || cat === 'delivery') continue;
+                database[cat].forEach((p, i) => {
+                    const isSoldOut = p.inStock === false;
+                    const hasDiscount = p.isDiscount || (p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price));
+                    const discountHTML = hasDiscount ? `<div class="discount-status-badge">عرض خاص / خصم </div>` : "";
+                    if (p.name.toLowerCase().includes(q.toLowerCase())) {
+                        found = true;
+                        html += `
                             <div class="product-card">
                                 <div class="product-image">
                                     <img src="${uploadedImages[p.img] || p.img}" alt="${p.name}">
@@ -2203,100 +2204,100 @@
                                 </div>
                             </div>
                         `;
-                        }
-                    });
-                }
-
-                if (!found) {
-                    html = '<h2>لم يتم العثور على نتائج</h2>';
-                }
-
-                document.getElementById('products-container').innerHTML = html;
+                    }
+                });
             }
 
-            // WebSocket-like instant sync - multiple parallel checks
-            const instantSync = () => {
-                if (isCloudActive && db) {
-                    // Parallel Firebase requests for maximum speed
-                    Promise.all([
-                        db.collection('app').doc('data').get(),
-                        db.collection('app').doc('data').get(),
-                        db.collection('app').doc('data').get()
-                    ]).then(([doc1, doc2, doc3]) => {
-                        const doc = doc1; // Use first result
-                        if (doc.exists) {
-                            const newData = doc.data();
-                            if (JSON.stringify(newData) !== JSON.stringify(database)) {
-                                console.log("⚡ Instant sync: Update detected");
-                                database = newData;
-                                // Force complete UI refresh instantly
-                                ensureDefaults();
-                                renderCategories();
-                                render(currentCat);
-                                renderBestSellers();
-                                renderGallery();
+            if (!found) {
+                html = '<h2>لم يتم العثور على نتائج</h2>';
+            }
 
-                                // Apply Ramadan mode from cloud immediately
-                                if (database.settings && database.settings.isRamadanMode !== undefined) {
-                                    isRamadanMode = database.settings.isRamadanMode;
-                                    localStorage.setItem('oudelle_ramadan', isRamadanMode);
-                                    document.body.classList.toggle('ramadan-mode', isRamadanMode);
-                                    const btn = document.getElementById('ramadan-toggle-btn');
-                                    if (btn) btn.innerText = isRamadanMode ? "إبطال" : "تفعيل";
-                                }
+            document.getElementById('products-container').innerHTML = html;
+        }
 
-                                // Apply home background from cloud immediately
-                                if (database.settings && database.settings.homeBackground) {
-                                    const sliderBg = document.getElementById('slider-bg');
-                                    sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no-repeat`;
-                                }
+        // WebSocket-like instant sync - multiple parallel checks
+        const instantSync = () => {
+            if (isCloudActive && db) {
+                // Parallel Firebase requests for maximum speed
+                Promise.all([
+                    db.collection('app').doc('data').get(),
+                    db.collection('app').doc('data').get(),
+                    db.collection('app').doc('data').get()
+                ]).then(([doc1, doc2, doc3]) => {
+                    const doc = doc1; // Use first result
+                    if (doc.exists) {
+                        const newData = doc.data();
+                        if (JSON.stringify(newData) !== JSON.stringify(database)) {
+                            console.log("⚡ Instant sync: Update detected");
+                            database = newData;
+                            // Force complete UI refresh instantly
+                            ensureDefaults();
+                            renderCategories();
+                            render(currentCat);
+                            renderBestSellers();
+                            renderGallery();
 
-                                syncUI();
-
-                                // Show sync notification to users
-                                showSyncNotification();
-                                console.log("⚡ UI updated from cloud instantly!");
+                            // Apply Ramadan mode from cloud immediately
+                            if (database.settings && database.settings.isRamadanMode !== undefined) {
+                                isRamadanMode = database.settings.isRamadanMode;
+                                localStorage.setItem('oudelle_ramadan', isRamadanMode);
+                                document.body.classList.toggle('ramadan-mode', isRamadanMode);
+                                const btn = document.getElementById('ramadan-toggle-btn');
+                                if (btn) btn.innerText = isRamadanMode ? "إبطال" : "تفعيل";
                             }
-                        }
-                    }).catch((error) => {
-                        console.error("Sync error:", error);
-                        // Retry Firebase connection immediately
-                        if (db) {
-                            db.collection('app').doc('data').get().then(() => {
-                                console.log("⚡ Retry sync successful!");
-                            });
-                        }
-                    });
-                } else {
-                    // Force Firebase reconnection immediately
-                    if (typeof firebase !== 'undefined') {
-                        try {
-                            db = firebase.firestore();
-                            isCloudActive = true;
-                            console.log("🔥 Firebase reconnected instantly!");
-                        } catch (e) {
-                            console.error("❌ Reconnection failed:", e);
+
+                            // Apply home background from cloud immediately
+                            if (database.settings && database.settings.homeBackground) {
+                                const sliderBg = document.getElementById('slider-bg');
+                                sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no-repeat`;
+                            }
+
+                            syncUI();
+
+                            // Show sync notification to users
+                            showSyncNotification();
+                            console.log("⚡ UI updated from cloud instantly!");
                         }
                     }
+                }).catch((error) => {
+                    console.error("Sync error:", error);
+                    // Retry Firebase connection immediately
+                    if (db) {
+                        db.collection('app').doc('data').get().then(() => {
+                            console.log("⚡ Retry sync successful!");
+                        });
+                    }
+                });
+            } else {
+                // Force Firebase reconnection immediately
+                if (typeof firebase !== 'undefined') {
+                    try {
+                        db = firebase.firestore();
+                        isCloudActive = true;
+                        console.log("🔥 Firebase reconnected instantly!");
+                    } catch (e) {
+                        console.error("❌ Reconnection failed:", e);
+                    }
                 }
-            };
+            }
+        };
 
-            // Run instant sync continuously
+        // Run instant sync continuously
+        instantSync();
+        setInterval(instantSync, 0);
+
+        // Also run on every animation frame for maximum responsiveness
+        const animationFrameSync = () => {
             instantSync();
-            setInterval(instantSync, 0);
-
-            // Also run on every animation frame for maximum responsiveness
-            const animationFrameSync = () => {
-                instantSync();
-                requestAnimationFrame(animationFrameSync);
-            };
             requestAnimationFrame(animationFrameSync);
+        };
+        requestAnimationFrame(animationFrameSync);
 
-            // Auto refresh notification for users
-            function showSyncNotification() {
-                // Create notification element
-                const notification = document.createElement('div');
-                notification.style.cssText = `
+        // Auto refresh notification for users
+        function showSyncNotification() {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
                 position: fixed;
                 top: 100px;
                 left: 50%;
@@ -2311,28 +2312,28 @@
                 animation: slideDown 0.5s ease;
                 font-size: 1rem;
             `;
-                notification.innerHTML = '🔄 تم تحديث القائمة تلقائياً!';
+            notification.innerHTML = '🔄 تم تحديث القائمة تلقائياً!';
 
-                document.body.appendChild(notification);
+            document.body.appendChild(notification);
 
-                // Remove notification after 3 seconds
+            // Remove notification after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideUp 0.5s ease';
                 setTimeout(() => {
-                    notification.style.animation = 'slideUp 0.5s ease';
-                    setTimeout(() => {
-                        document.body.removeChild(notification);
-                    }, 500);
-                }, 3000);
-            }
+                    document.body.removeChild(notification);
+                }, 500);
+            }, 3000);
+        }
 
-            function openAdmin() {
-                // Remove existing login modal if any
-                const existingModal = document.querySelector('.admin-login-overlay');
-                if (existingModal) existingModal.remove();
+        function openAdmin() {
+            // Remove existing login modal if any
+            const existingModal = document.querySelector('.admin-login-overlay');
+            if (existingModal) existingModal.remove();
 
-                // Create custom login modal
-                const loginModal = document.createElement('div');
-                loginModal.className = 'admin-login-overlay';
-                loginModal.style.cssText = `
+            // Create custom login modal
+            const loginModal = document.createElement('div');
+            loginModal.className = 'admin-login-overlay';
+            loginModal.style.cssText = `
                 position: fixed;
                 top: 0;
                 left: 0;
@@ -2346,7 +2347,7 @@
                 direction: rtl;
             `;
 
-                loginModal.innerHTML = `
+            loginModal.innerHTML = `
                 <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 400px; width: 90%;">
                     <h2 style="text-align: center; margin-bottom: 20px; color: var(--primary);">🎛️ تسجيل دخول الإدمن</h2>
                     <div style="margin-bottom: 15px;">
@@ -2360,420 +2361,420 @@
                 </div>
             `;
 
-                document.body.appendChild(loginModal);
+            document.body.appendChild(loginModal);
 
-                // Focus on password input
-                setTimeout(() => {
-                    const passInput = document.getElementById('admin-pass-input');
-                    if (passInput) {
-                        passInput.focus();
-                        // Allow Enter key to submit
-                        passInput.addEventListener('keypress', function (e) {
-                            if (e.key === 'Enter') {
-                                confirmAdminLogin();
-                            }
-                        });
-                    }
-                }, 100);
-            }
-
-            function confirmAdminLogin() {
+            // Focus on password input
+            setTimeout(() => {
                 const passInput = document.getElementById('admin-pass-input');
-                const password = passInput ? passInput.value : '';
-
-                if (password === "55555") {
-                    document.querySelector('.admin-login-overlay').remove();
-                    showAdminPanel();
-                    alert("✅ تم تسجيل الدخول بنجاح!");
-                } else {
-                    passInput.style.borderColor = '#dc3545';
-                    passInput.style.animation = 'shake 0.5s';
-                    setTimeout(() => {
-                        passInput.style.borderColor = 'var(--gold)';
-                        passInput.style.animation = '';
-                    }, 500);
+                if (passInput) {
+                    passInput.focus();
+                    // Allow Enter key to submit
+                    passInput.addEventListener('keypress', function (e) {
+                        if (e.key === 'Enter') {
+                            confirmAdminLogin();
+                        }
+                    });
                 }
-            }
+            }, 100);
+        }
 
-            function cancelAdminLogin() {
-                const loginModal = document.querySelector('.admin-login-overlay');
-                if (loginModal) {
-                    loginModal.remove();
-                }
-            }
+        function confirmAdminLogin() {
+            const passInput = document.getElementById('admin-pass-input');
+            const password = passInput ? passInput.value : '';
 
-            function showAdminPanel() {
-                document.getElementById('adminModal').style.display = 'flex';
-                renderAdmTabs();
-                renderAdmTable();
-                renderAdmGallery();
-                renderAdmVouchers();
-                renderAdmAreas();
+            if (password === "55555") {
+                document.querySelector('.admin-login-overlay').remove();
+                showAdminPanel();
+                alert("✅ تم تسجيل الدخول بنجاح!");
+            } else {
+                passInput.style.borderColor = '#dc3545';
+                passInput.style.animation = 'shake 0.5s';
+                setTimeout(() => {
+                    passInput.style.borderColor = 'var(--gold)';
+                    passInput.style.animation = '';
+                }, 500);
+            }
+        }
+
+        function cancelAdminLogin() {
+            const loginModal = document.querySelector('.admin-login-overlay');
+            if (loginModal) {
+                loginModal.remove();
+            }
+        }
+
+        function showAdminPanel() {
+            document.getElementById('adminModal').style.display = 'flex';
+            renderAdmTabs();
+            renderAdmTable();
+            renderAdmGallery();
+            renderAdmVouchers();
+            renderAdmAreas();
+            renderStats();
+            renderAdmOrders();
+            renderAdmMixEditor();
+            if (database.settings) {
+                document.getElementById('adm-wa-num').value = database.settings.whatsapp;
+                document.getElementById('adm-ticker-text').value = database.settings.ticker;
+            }
+            document.getElementById('ramadan-toggle-btn').innerText = isRamadanMode ? "إبطال" : "تفعيل";
+        }
+
+        function resetRevenue() {
+            if (confirm("⚠️ تحذير: هل أنت متأكد من تصفير إجمالي المبيعات؟ هذا الإجراء لا يمكن التراجع عنه!")) {
+                database.stats.totalRevenue = 0;
+                saveAdminChanges();
+                renderStats();
+                alert("✅ تم تصفير إجمالي المبيعات بنجاح!");
+            }
+        }
+
+        function resetTotalOrders() {
+            if (confirm("⚠️ تحذير: هل أنت متأكد من تصفير إجمالي الطالبات؟ هذا الإجراء لا يمكن التراجع عنه!")) {
+                database.orders = [];
+                database.stats.totalOrders = 0;
+                localStorage.setItem('oudelle_order_counter', 0);
+                saveAdminChanges();
                 renderStats();
                 renderAdmOrders();
-                renderAdmMixEditor();
-                if (database.settings) {
-                    document.getElementById('adm-wa-num').value = database.settings.whatsapp;
-                    document.getElementById('adm-ticker-text').value = database.settings.ticker;
-                }
-                document.getElementById('ramadan-toggle-btn').innerText = isRamadanMode ? "إبطال" : "تفعيل";
+                alert("✅ تم تصفير إجمالي الطالبات بنجاح!");
             }
+        }
 
-            function resetRevenue() {
-                if (confirm("⚠️ تحذير: هل أنت متأكد من تصفير إجمالي المبيعات؟ هذا الإجراء لا يمكن التراجع عنه!")) {
-                    database.stats.totalRevenue = 0;
-                    saveAdminChanges();
-                    renderStats();
-                    alert("✅ تم تصفير إجمالي المبيعات بنجاح!");
-                }
+        function clearAllOrders() {
+            if (confirm("⚠️ تحذير: هل أنت متأكد من مسح كل الأوردرات؟ هذا الإجراء لا يمكن التراجع عنه!")) {
+                database.orders = [];
+                saveAdminChanges();
+                renderAdmOrders();
+                alert("✅ تم مسح جميع الأوردرات بنجاح!");
             }
+        }
 
-            function resetTotalOrders() {
-                if (confirm("⚠️ تحذير: هل أنت متأكد من تصفير إجمالي الطالبات؟ هذا الإجراء لا يمكن التراجع عنه!")) {
-                    database.orders = [];
-                    database.stats.totalOrders = 0;
-                    localStorage.setItem('oudelle_order_counter', 0);
-                    saveAdminChanges();
-                    renderStats();
-                    renderAdmOrders();
-                    alert("✅ تم تصفير إجمالي الطالبات بنجاح!");
-                }
-            }
-
-            function clearAllOrders() {
-                if (confirm("⚠️ تحذير: هل أنت متأكد من مسح كل الأوردرات؟ هذا الإجراء لا يمكن التراجع عنه!")) {
-                    database.orders = [];
-                    saveAdminChanges();
-                    renderAdmOrders();
-                    alert("✅ تم مسح جميع الأوردرات بنجاح!");
-                }
-            }
-
-            function renderAdmTabs() {
-                const tabsDiv = document.getElementById('adm-category-tabs');
-                if (tabsDiv && database.categories) {
-                    tabsDiv.innerHTML = database.categories.map(c => `
+        function renderAdmTabs() {
+            const tabsDiv = document.getElementById('adm-category-tabs');
+            if (tabsDiv && database.categories) {
+                tabsDiv.innerHTML = database.categories.map(c => `
                     <button class="admin-tab-btn ${c.id === admCurrentCat ? 'active' : ''}" 
                             onclick="switchAdmCat('${c.id}')">
                         ${c.name}
                     </button>
                 `).join('');
-                }
+            }
+        }
+
+        function switchAdmCat(cat) {
+            admCurrentCat = cat;
+            renderAdmTabs();
+
+            renderAdmTable();
+            render(cat);
+        }
+
+        function syncUI() {
+            // Update Global Settings
+            if (database.settings) {
+                WHATSAPP_NUM = database.settings.whatsapp;
+                TICKER_TEXT = database.settings.ticker;
+                const tickerEl = document.querySelector('.ticker');
+                if (tickerEl) tickerEl.innerText = TICKER_TEXT;
             }
 
-            function switchAdmCat(cat) {
-                admCurrentCat = cat;
-                renderAdmTabs();
-
-                renderAdmTable();
-                render(cat);
-            }
-
-            function syncUI() {
-                // Update Global Settings
-                if (database.settings) {
-                    WHATSAPP_NUM = database.settings.whatsapp;
-                    TICKER_TEXT = database.settings.ticker;
-                    const tickerEl = document.querySelector('.ticker');
-                    if (tickerEl) tickerEl.innerText = TICKER_TEXT;
+            // Render Client Views (ensure immediate local update)
+            renderCategories();
+            render(currentCat);
+            renderBestSellers();
+            const sky = document.getElementById('sky-overlay');
+            if (sky && sky.children.length === 0) {
+                for (let i = 0; i < 80; i++) {
+                    const star = document.createElement('div');
+                    star.className = 'star';
+                    star.style.left = Math.random() * 100 + '%';
+                    star.style.top = Math.random() * 100 + '%';
+                    const size = Math.random() * 2 + 1;
+                    star.style.width = size + 'px';
+                    star.style.height = size + 'px';
+                    star.style.animation = `twinkle ${2 + Math.random() * 3}s infinite alternate`;
+                    sky.appendChild(star);
                 }
+            }
+            updateAtmosphere();
+            if (!window.ramadanInterval) {
+                window.ramadanInterval = setInterval(updateAtmosphere, 1000);
+            }
+        }
 
-                // Render Client Views (ensure immediate local update)
-                renderCategories();
-                render(currentCat);
-                renderBestSellers();
-                const sky = document.getElementById('sky-overlay');
-                if (sky && sky.children.length === 0) {
-                    for (let i = 0; i < 80; i++) {
-                        const star = document.createElement('div');
-                        star.className = 'star';
-                        star.style.left = Math.random() * 100 + '%';
-                        star.style.top = Math.random() * 100 + '%';
-                        const size = Math.random() * 2 + 1;
-                        star.style.width = size + 'px';
-                        star.style.height = size + 'px';
-                        star.style.animation = `twinkle ${2 + Math.random() * 3}s infinite alternate`;
-                        sky.appendChild(star);
+        function updateAtmosphere() {
+            if (!isRamadanMode) {
+                if (window.ramadanInterval) {
+                    clearInterval(window.ramadanInterval);
+                    window.ramadanInterval = null;
+                }
+                return;
+            }
+            const now = new Date();
+            const maghrib = new Date();
+            maghrib.setHours(18, 15, 0); // Estimated Iftar for Naga Hammadi
+            const diff = maghrib - now;
+            const timer = document.getElementById('iftar-countdown');
+            const stars = document.querySelectorAll('.star');
+            const compass = document.getElementById('ramadan-compass');
+
+            if (diff > 0) {
+                const hours = Math.floor(diff / 3600000);
+                const mins = Math.floor((diff % 3600000) / 60000);
+                const secs = Math.floor((diff % 60000) / 1000);
+                timer.innerHTML = `${hours}h ${mins}m<br>على المغرب`;
+                const twoHours = 2 * 60 * 60 * 1000;
+                if (diff < twoHours) {
+                    const progress = 1 - (diff / twoHours);
+                    if (progress > 0.5) document.body.classList.add('night-time');
+                    stars.forEach(s => s.style.opacity = progress.toFixed(2));
+                }
+            } else {
+                timer.innerHTML = "صوماً مقبولاً<br>وإفطاراً شهياً";
+                document.body.classList.add('night-time');
+                stars.forEach(s => s.style.opacity = '1');
+                if (compass) compass.style.borderColor = "#4ade80";
+            }
+        }
+
+        function showIftarInfo() {
+            alert("بوصلة أوديل الرمضانية ✨\nتقوم بحساب موعد الإفطار في نجع حمادي وتنبيهك باقتراب وقت المغرب!");
+        }
+
+        // --- Advanced Engagement Features Logic ---
+        let appliedDiscount = 0;
+        const validVouchers = { 'OUDELLE10': 0.10, 'WELCOME': 0.05, 'OFF50': 0.50, 'OUDELLE2026': 0.10 };
+
+        function surpriseMe() {
+            const allProducts = [];
+            for (let cat in database) {
+                if (database[cat]) {
+                    database[cat].forEach(p => { if (!p.isMix && p.inStock !== false) allProducts.push({ ...p, cat }); });
+                }
+            }
+            if (allProducts.length === 0) return;
+            const randomP = allProducts[Math.floor(Math.random() * allProducts.length)];
+
+            // Highlight the product
+            showMenu();
+            render(randomP.cat);
+            alert(`✨ جربنا نختارلك: ${randomP.name}! ✨\nإيه رأيك؟`);
+
+            // Scroll to it
+            setTimeout(() => {
+                const cards = document.querySelectorAll('.card');
+                cards.forEach(c => {
+                    if (c.innerText.includes(randomP.name)) {
+                        c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        c.style.boxShadow = "0 0 30px var(--gold)";
+                        setTimeout(() => c.style.boxShadow = "var(--shadow)", 3000);
                     }
-                }
-                updateAtmosphere();
-                if (!window.ramadanInterval) {
-                    window.ramadanInterval = setInterval(updateAtmosphere, 1000);
-                }
-            }
-
-            function updateAtmosphere() {
-                if (!isRamadanMode) {
-                    if (window.ramadanInterval) {
-                        clearInterval(window.ramadanInterval);
-                        window.ramadanInterval = null;
-                    }
-                    return;
-                }
-                const now = new Date();
-                const maghrib = new Date();
-                maghrib.setHours(18, 15, 0); // Estimated Iftar for Naga Hammadi
-                const diff = maghrib - now;
-                const timer = document.getElementById('iftar-countdown');
-                const stars = document.querySelectorAll('.star');
-                const compass = document.getElementById('ramadan-compass');
-
-                if (diff > 0) {
-                    const hours = Math.floor(diff / 3600000);
-                    const mins = Math.floor((diff % 3600000) / 60000);
-                    const secs = Math.floor((diff % 60000) / 1000);
-                    timer.innerHTML = `${hours}h ${mins}m<br>على المغرب`;
-                    const twoHours = 2 * 60 * 60 * 1000;
-                    if (diff < twoHours) {
-                        const progress = 1 - (diff / twoHours);
-                        if (progress > 0.5) document.body.classList.add('night-time');
-                        stars.forEach(s => s.style.opacity = progress.toFixed(2));
-                    }
-                } else {
-                    timer.innerHTML = "صوماً مقبولاً<br>وإفطاراً شهياً";
-                    document.body.classList.add('night-time');
-                    stars.forEach(s => s.style.opacity = '1');
-                    if (compass) compass.style.borderColor = "#4ade80";
-                }
-            }
-
-            function showIftarInfo() {
-                alert("بوصلة أوديل الرمضانية ✨\nتقوم بحساب موعد الإفطار في نجع حمادي وتنبيهك باقتراب وقت المغرب!");
-            }
-
-            // --- Advanced Engagement Features Logic ---
-            let appliedDiscount = 0;
-            const validVouchers = { 'OUDELLE10': 0.10, 'WELCOME': 0.05, 'OFF50': 0.50, 'OUDELLE2026': 0.10 };
-
-            function surpriseMe() {
-                const allProducts = [];
-                for (let cat in database) {
-                    if (database[cat]) {
-                        database[cat].forEach(p => { if (!p.isMix && p.inStock !== false) allProducts.push({ ...p, cat }); });
-                    }
-                }
-                if (allProducts.length === 0) return;
-                const randomP = allProducts[Math.floor(Math.random() * allProducts.length)];
-
-                // Highlight the product
-                showMenu();
-                render(randomP.cat);
-                alert(`✨ جربنا نختارلك: ${randomP.name}! ✨\nإيه رأيك؟`);
-
-                // Scroll to it
-                setTimeout(() => {
-                    const cards = document.querySelectorAll('.card');
-                    cards.forEach(c => {
-                        if (c.innerText.includes(randomP.name)) {
-                            c.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            c.style.boxShadow = "0 0 30px var(--gold)";
-                            setTimeout(() => c.style.boxShadow = "var(--shadow)", 3000);
-                        }
-                    });
-                }, 500);
-            }
-
-            function applyVoucher() {
-                const code = document.getElementById('v-code').value.toUpperCase();
-                const msg = document.getElementById('v-msg');
-                const vouchers = database.vouchers || {};
-                if (vouchers[code]) {
-                    appliedDiscount = vouchers[code];
-                    msg.innerText = `✅ تم تطبيق خصم ${(appliedDiscount * 100)}%`;
-                    msg.style.color = "green";
-                    updateTotal();
-                } else {
-                    appliedDiscount = 0;
-                    msg.innerText = "❌ كود غير صحيح";
-                    msg.style.color = "red";
-                    updateTotal();
-                }
-            }
-
-            function callWaiter() {
-                if (!selectedTableNumber) return alert("يرجى اختيار رقم الطاولة أولاً");
-                const text = `🔔 *طلب مساعدة*\\n*طاولة رقم:* ${selectedTableNumber}\\nالعميل يطلب الجرسون.`;
-                window.open(`https://wa.me/${WHATSAPP_NUM}?text=${encodeURIComponent(text)}`);
-            }
-
-
-            function render(cat, btn) {
-                currentCat = cat;
-                document.querySelectorAll('.tab').forEach(t => {
-                    t.classList.remove('active');
-                    if (t.getAttribute('onclick')?.includes(`'${cat}'`)) t.classList.add('active');
                 });
+            }, 500);
+        }
 
-                let html = "";
-                let itemsWithIndex = database[cat]
-                    .map((p, index) => ({ ...p, index }))
-                    .sort((a, b) => (a.isMix === b.isMix ? 0 : a.isMix ? 1 : -1));
+        function applyVoucher() {
+            const code = document.getElementById('v-code').value.toUpperCase();
+            const msg = document.getElementById('v-msg');
+            const vouchers = database.vouchers || {};
+            if (vouchers[code]) {
+                appliedDiscount = vouchers[code];
+                msg.innerText = `✅ تم تطبيق خصم ${(appliedDiscount * 100)}%`;
+                msg.style.color = "green";
+                updateTotal();
+            } else {
+                appliedDiscount = 0;
+                msg.innerText = "❌ كود غير صحيح";
+                msg.style.color = "red";
+                updateTotal();
+            }
+        }
 
-                if (itemsWithIndex.length === 0) {
-                    document.getElementById('product-grid').innerHTML = "<p style='text-align:center; width:100%; padding:20px;'>لا توجد أصناف حالياً في هذا القسم</p>";
-                    return;
+        function callWaiter() {
+            if (!selectedTableNumber) return alert("يرجى اختيار رقم الطاولة أولاً");
+            const text = `🔔 *طلب مساعدة*\\n*طاولة رقم:* ${selectedTableNumber}\\nالعميل يطلب الجرسون.`;
+            window.open(`https://wa.me/${WHATSAPP_NUM}?text=${encodeURIComponent(text)}`);
+        }
+
+
+        function render(cat, btn) {
+            currentCat = cat;
+            document.querySelectorAll('.tab').forEach(t => {
+                t.classList.remove('active');
+                if (t.getAttribute('onclick')?.includes(`'${cat}'`)) t.classList.add('active');
+            });
+
+            let html = "";
+            let itemsWithIndex = database[cat]
+                .map((p, index) => ({ ...p, index }))
+                .sort((a, b) => (a.isMix === b.isMix ? 0 : a.isMix ? 1 : -1));
+
+            if (itemsWithIndex.length === 0) {
+                document.getElementById('product-grid').innerHTML = "<p style='text-align:center; width:100%; padding:20px;'>لا توجد أصناف حالياً في هذا القسم</p>";
+                return;
+            }
+
+            const uploadedImages = database.uploadedImages || {};
+            itemsWithIndex.forEach((p) => {
+                const i = p.index;
+                const isSoldOut = p.inStock === false;
+                const isVIP = p.isVIP || false;
+                const hasDiscount = p.isDiscount || (p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price));
+                const discountHTML = hasDiscount ? `<div class="discount-status-badge">عرض خاص / خصم 🏷️</div>` : "";
+
+                // Check if image exists in uploaded images or use placeholder
+                let img = p.img || `https://via.placeholder.com/300x200?text=${p.name}`;
+                if (p.img && uploadedImages[p.img]) {
+                    img = uploadedImages[p.img];
                 }
 
-                const uploadedImages = database.uploadedImages || {};
-                itemsWithIndex.forEach((p) => {
-                    const i = p.index;
-                    const isSoldOut = p.inStock === false;
-                    const isVIP = p.isVIP || false;
-                    const hasDiscount = p.isDiscount || (p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price));
-                    const discountHTML = hasDiscount ? `<div class="discount-status-badge">عرض خاص / خصم 🏷️</div>` : "";
-
-                    // Check if image exists in uploaded images or use placeholder
-                    let img = p.img || `https://via.placeholder.com/300x200?text=${p.name}`;
-                    if (p.img && uploadedImages[p.img]) {
-                        img = uploadedImages[p.img];
-                    }
-
-                    const vipHTML = isVIP ? `<div class="vip-badge">الشيف يرشحه 👑</div>` : "";
+                const vipHTML = isVIP ? `<div class="vip-badge">الشيف يرشحه 👑</div>` : "";
 
 
-                    if (p.isMix) {
-                        const sourceItems = p.contents ? p.contents.map(name => {
-                            for (let c in database) {
-                                let found = database[c].find(x => x.name === name);
-                                if (found) return found;
-                            }
-                            return null;
-                        }).filter(x => x) : database[p.source].filter(x => !x.isMix);
+                if (p.isMix) {
+                    const sourceItems = p.contents ? p.contents.map(name => {
+                        for (let c in database) {
+                            let found = database[c].find(x => x.name === name);
+                            if (found) return found;
+                        }
+                        return null;
+                    }).filter(x => x) : database[p.source].filter(x => !x.isMix);
 
-                        html += `<div class="card ${isSoldOut ? 'sold-out' : ''}" style="grid-column: 1/-1; background: var(--primary); color: white; position:relative;">${discountHTML}${vipHTML}<h3 style="color: white;">${p.title}</h3>` +
-                            sourceItems.map(sub => `<div style="display:flex; justify-content:space-between; padding:5px; color: white;">${sub.name}<input type="number" class="mix-sub" data-name="${sub.name}" data-price="${sub.price}" style="width:60px" placeholder="جم"></div>`).join('') + `<button class="hero-btn" style="box-shadow:none; margin-top:10px; font-size:1rem; color: white; border: 1px solid white;" onclick="addMix('${p.title}')" ${isSoldOut ? 'disabled' : ''}>${isSoldOut ? 'غير متوفر حالياً' : 'إضافة'}</button></div>`;
+                    html += `<div class="card ${isSoldOut ? 'sold-out' : ''}" style="grid-column: 1/-1; background: var(--primary); color: white; position:relative;">${discountHTML}${vipHTML}<h3 style="color: white;">${p.title}</h3>` +
+                        sourceItems.map(sub => `<div style="display:flex; justify-content:space-between; padding:5px; color: white;">${sub.name}<input type="number" class="mix-sub" data-name="${sub.name}" data-price="${sub.price}" style="width:60px" placeholder="جم"></div>`).join('') + `<button class="hero-btn" style="box-shadow:none; margin-top:10px; font-size:1rem; color: white; border: 1px solid white;" onclick="addMix('${p.title}')" ${isSoldOut ? 'disabled' : ''}>${isSoldOut ? 'غير متوفر حالياً' : 'إضافة'}</button></div>`;
+                } else {
+                    const optionsHTML = (p.options && p.options.length)
+                        ? `<select id="o-${cat}-${i}" class="weight-select" ${isSoldOut ? 'disabled' : ''}>${p.options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`
+                        : "";
+
+                    if (p.type === 'kg') {
+                        let displayPrice = (p.price / 4).toFixed(2);
+                        let oldDisplayPrice = p.oldPrice ? (p.oldPrice / 4).toFixed(2) : null;
+                        const oldPriceHTML = oldDisplayPrice ? `<div class="old-price-display"><span class="price-strike-small">${oldDisplayPrice} ج</span></div>` : "";
+                        let unit = 'ج/ربع كيلو';
+                        let weightOptions = `<option value="0.25">250جم</option><option value="0.5">500جم</option><option value="0.75">750جم</option><option value="1" selected>1 كيلو</option>`;
+                        html += `<div class="card ${isSoldOut ? 'sold-out' : ''}" style="position:relative;">${vipHTML}<img src="${img}"><h3>${p.name}</h3>` +
+                            (isSoldOut ? `<span class="out-of-stock-badge">غير متوفر حالياً</span>` : `${discountHTML}${oldPriceHTML}<span class="price-badge">${displayPrice} ${unit}</span>`) +
+                            `${optionsHTML}<select id="w-${cat}-${i}" class="weight-select" ${isSoldOut ? 'disabled' : ''}>${weightOptions}</select><button class="add-btn" onclick="addKg('${cat}',${i})" ${isSoldOut ? 'disabled' : ''}>${isSoldOut ? 'غير متوفر' : 'إضافة'}</button></div>`;
                     } else {
-                        const optionsHTML = (p.options && p.options.length)
-                            ? `<select id="o-${cat}-${i}" class="weight-select" ${isSoldOut ? 'disabled' : ''}>${p.options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`
-                            : "";
-
-                        if (p.type === 'kg') {
-                            let displayPrice = (p.price / 4).toFixed(2);
-                            let oldDisplayPrice = p.oldPrice ? (p.oldPrice / 4).toFixed(2) : null;
-                            const oldPriceHTML = oldDisplayPrice ? `<div class="old-price-display"><span class="price-strike-small">${oldDisplayPrice} ج</span></div>` : "";
-                            let unit = 'ج/ربع كيلو';
-                            let weightOptions = `<option value="0.25">250جم</option><option value="0.5">500جم</option><option value="0.75">750جم</option><option value="1" selected>1 كيلو</option>`;
-                            html += `<div class="card ${isSoldOut ? 'sold-out' : ''}" style="position:relative;">${vipHTML}<img src="${img}"><h3>${p.name}</h3>` +
-                                (isSoldOut ? `<span class="out-of-stock-badge">غير متوفر حالياً</span>` : `${discountHTML}${oldPriceHTML}<span class="price-badge">${displayPrice} ${unit}</span>`) +
-                                `${optionsHTML}<select id="w-${cat}-${i}" class="weight-select" ${isSoldOut ? 'disabled' : ''}>${weightOptions}</select><button class="add-btn" onclick="addKg('${cat}',${i})" ${isSoldOut ? 'disabled' : ''}>${isSoldOut ? 'غير متوفر' : 'إضافة'}</button></div>`;
-                        } else {
-                            const oldPriceHTML = p.oldPrice ? `<div class="old-price-display"><span class="price-strike-small">${p.oldPrice} ج</span></div>` : "";
-                            html += `<div class="card ${isSoldOut ? 'sold-out' : ''}" style="position:relative;">${vipHTML}<img src="${img}"><h3>${p.name}</h3>` +
-                                (isSoldOut ? `<span class="out-of-stock-badge">غير متوفر حالياً</span>` : `${discountHTML}${oldPriceHTML}<span class="price-badge">${p.price} ج.م</span>`) +
-                                `${optionsHTML}<input type="number" id="q-${cat}-${i}" class="weight-select" value="1" min="1" ${isSoldOut ? 'disabled' : ''}><button class="add-btn" onclick="addPiece('${cat}',${i})" ${isSoldOut ? 'disabled' : ''}>${isSoldOut ? 'غير متوفر' : 'إضافة'}</button></div>`;
-                        }
+                        const oldPriceHTML = p.oldPrice ? `<div class="old-price-display"><span class="price-strike-small">${p.oldPrice} ج</span></div>` : "";
+                        html += `<div class="card ${isSoldOut ? 'sold-out' : ''}" style="position:relative;">${vipHTML}<img src="${img}"><h3>${p.name}</h3>` +
+                            (isSoldOut ? `<span class="out-of-stock-badge">غير متوفر حالياً</span>` : `${discountHTML}${oldPriceHTML}<span class="price-badge">${p.price} ج.م</span>`) +
+                            `${optionsHTML}<input type="number" id="q-${cat}-${i}" class="weight-select" value="1" min="1" ${isSoldOut ? 'disabled' : ''}><button class="add-btn" onclick="addPiece('${cat}',${i})" ${isSoldOut ? 'disabled' : ''}>${isSoldOut ? 'غير متوفر' : 'إضافة'}</button></div>`;
                     }
-                });
-                document.getElementById('product-grid').innerHTML = html;
-            }
-
-
-            // --- Cart Functions ---
-            function addToCart(cat, index) {
-                // Default behavior for manual add button (mostly for search results)
-                // For specific types, use addPiece or addKg
-                const p = database[cat][index];
-                if (!p) return;
-
-                // If it has options or is kg, try to find the specific selectors
-                if (p.type === 'kg') {
-                    addKg(cat, index);
-                } else {
-                    addPiece(cat, index);
                 }
+            });
+            document.getElementById('product-grid').innerHTML = html;
+        }
+
+
+        // --- Cart Functions ---
+        function addToCart(cat, index) {
+            // Default behavior for manual add button (mostly for search results)
+            // For specific types, use addPiece or addKg
+            const p = database[cat][index];
+            if (!p) return;
+
+            // If it has options or is kg, try to find the specific selectors
+            if (p.type === 'kg') {
+                addKg(cat, index);
+            } else {
+                addPiece(cat, index);
+            }
+        }
+
+        function addPiece(cat, index) {
+            const p = database[cat][index];
+            const qInput = document.getElementById(`q-${cat}-${index}`);
+            const quantity = qInput ? parseInt(qInput.value) : 1;
+            const optionSelect = document.getElementById(`o-${cat}-${index}`);
+            const option = optionSelect ? optionSelect.value : null;
+
+            if (quantity < 1) return alert("الكمية يجب أن تكون 1 على الأقل");
+
+            const item = {
+                name: p.name + (option ? ` (${option})` : ""),
+                price: parseFloat(p.price) * quantity,
+                quantity: quantity,
+                type: 'piece',
+                unitPrice: p.price
+            };
+
+            cart.push(item);
+            updateCartCount();
+            saveCart();
+            showToast(`تم إضافة ${quantity} ${p.name} للسلة 🛒`);
+        }
+
+        function addKg(cat, index) {
+            const p = database[cat][index];
+            const wSelect = document.getElementById(`w-${cat}-${index}`);
+            const weight = parseFloat(wSelect.value);
+            const optionSelect = document.getElementById(`o-${cat}-${index}`);
+            const option = optionSelect ? optionSelect.value : null;
+
+            const price = parseFloat(p.price) * weight;
+            let weightLabel = "";
+            if (weight === 0.25) weightLabel = "ربع كيلو";
+            else if (weight === 0.5) weightLabel = "نصف كيلو";
+            else if (weight === 0.75) weightLabel = "كيلو إلا ربع";
+            else if (weight === 1) weightLabel = "كيلو";
+            else weightLabel = weight + " كيلو";
+
+            const item = {
+                name: p.name + ` (${weightLabel})` + (option ? ` - ${option}` : ""),
+                price: price,
+                quantity: 1,
+                weight: weight,
+                type: 'kg',
+                unitPrice: p.price
+            };
+
+            cart.push(item);
+            updateCartCount();
+            saveCart();
+            showToast(`تم إضافة ${p.name} للسلة 🛒`);
+        }
+
+        function addMix(title) {
+            // Logic for adding a mix box would go here if implemented
+            // For now, prompt user or add fixed item
+            const item = {
+                name: title,
+                price: 0, // Calculated later or fixed? Assuming mix usually has set price or sum
+                quantity: 1,
+                type: 'mix',
+                isMix: true
+            };
+            // Alert user that mix builder isn't fully active in this snippet or add partial logic
+            alert("سيتم إضافة ميزة تجميع البوكس قريباً! يمكنك الطلب عبر الواتساب مباشرة.");
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCartCount();
+            saveCart();
+            renderCart();
+        }
+
+        function updateCartCount() {
+            document.getElementById('cart-count').innerText = cart.length;
+        }
+
+        function saveCart() {
+            localStorage.setItem('oudelle_cart', JSON.stringify(cart));
+        }
+
+        function renderCart() {
+            const list = document.getElementById('cart-list');
+            if (cart.length === 0) {
+                list.innerHTML = "<p style='text-align:center;'>السلة فارغة 🛒</p>";
+                document.getElementById('total-price').innerText = "";
+                return;
             }
 
-            function addPiece(cat, index) {
-                const p = database[cat][index];
-                const qInput = document.getElementById(`q-${cat}-${index}`);
-                const quantity = qInput ? parseInt(qInput.value) : 1;
-                const optionSelect = document.getElementById(`o-${cat}-${index}`);
-                const option = optionSelect ? optionSelect.value : null;
-
-                if (quantity < 1) return alert("الكمية يجب أن تكون 1 على الأقل");
-
-                const item = {
-                    name: p.name + (option ? ` (${option})` : ""),
-                    price: parseFloat(p.price) * quantity,
-                    quantity: quantity,
-                    type: 'piece',
-                    unitPrice: p.price
-                };
-
-                cart.push(item);
-                updateCartCount();
-                saveCart();
-                showToast(`تم إضافة ${quantity} ${p.name} للسلة 🛒`);
-            }
-
-            function addKg(cat, index) {
-                const p = database[cat][index];
-                const wSelect = document.getElementById(`w-${cat}-${index}`);
-                const weight = parseFloat(wSelect.value);
-                const optionSelect = document.getElementById(`o-${cat}-${index}`);
-                const option = optionSelect ? optionSelect.value : null;
-
-                const price = parseFloat(p.price) * weight;
-                let weightLabel = "";
-                if (weight === 0.25) weightLabel = "ربع كيلو";
-                else if (weight === 0.5) weightLabel = "نصف كيلو";
-                else if (weight === 0.75) weightLabel = "كيلو إلا ربع";
-                else if (weight === 1) weightLabel = "كيلو";
-                else weightLabel = weight + " كيلو";
-
-                const item = {
-                    name: p.name + ` (${weightLabel})` + (option ? ` - ${option}` : ""),
-                    price: price,
-                    quantity: 1,
-                    weight: weight,
-                    type: 'kg',
-                    unitPrice: p.price
-                };
-
-                cart.push(item);
-                updateCartCount();
-                saveCart();
-                showToast(`تم إضافة ${p.name} للسلة 🛒`);
-            }
-
-            function addMix(title) {
-                // Logic for adding a mix box would go here if implemented
-                // For now, prompt user or add fixed item
-                const item = {
-                    name: title,
-                    price: 0, // Calculated later or fixed? Assuming mix usually has set price or sum
-                    quantity: 1,
-                    type: 'mix',
-                    isMix: true
-                };
-                // Alert user that mix builder isn't fully active in this snippet or add partial logic
-                alert("سيتم إضافة ميزة تجميع البوكس قريباً! يمكنك الطلب عبر الواتساب مباشرة.");
-            }
-
-            function removeFromCart(index) {
-                cart.splice(index, 1);
-                updateCartCount();
-                saveCart();
-                renderCart();
-            }
-
-            function updateCartCount() {
-                document.getElementById('cart-count').innerText = cart.length;
-            }
-
-            function saveCart() {
-                localStorage.setItem('oudelle_cart', JSON.stringify(cart));
-            }
-
-            function renderCart() {
-                const list = document.getElementById('cart-list');
-                if (cart.length === 0) {
-                    list.innerHTML = "<p style='text-align:center;'>السلة فارغة 🛒</p>";
-                    document.getElementById('total-price').innerText = "";
-                    return;
-                }
-
-                list.innerHTML = cart.map((item, i) => `
+            list.innerHTML = cart.map((item, i) => `
                 <div style="background:#fff; padding:10px; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #eee;">
                     <div>
                         <b>${item.name}</b>
@@ -2783,35 +2784,35 @@
                 </div>
             `).join('');
 
-                updateTotal();
+            updateTotal();
+        }
+
+        function showCart() {
+            const modal = document.getElementById('cartModal');
+            if (modal.style.display === 'flex') {
+                modal.style.display = 'none';
+            } else {
+                renderCart();
+                modal.style.display = 'flex';
             }
+        }
 
-            function showCart() {
-                const modal = document.getElementById('cartModal');
-                if (modal.style.display === 'flex') {
-                    modal.style.display = 'none';
-                } else {
-                    renderCart();
-                    modal.style.display = 'flex';
-                }
-            }
+        function showMenu() {
+            document.getElementById('home-page').style.display = 'none';
+            document.getElementById('menu-page').style.display = 'block';
+            window.scrollTo(0, 0);
+        }
 
-            function showMenu() {
-                document.getElementById('home-page').style.display = 'none';
-                document.getElementById('menu-page').style.display = 'block';
-                window.scrollTo(0, 0);
-            }
-
-            function showHome() {
-                document.getElementById('menu-page').style.display = 'none';
-                document.getElementById('home-page').style.display = 'flex';
-            }
+        function showHome() {
+            document.getElementById('menu-page').style.display = 'none';
+            document.getElementById('home-page').style.display = 'flex';
+        }
 
 
-            function showToast(msg) {
-                const toast = document.createElement('div');
-                toast.innerText = msg;
-                toast.style.cssText = `
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.innerText = msg;
+            toast.style.cssText = `
                 position: fixed;
                 bottom: 20px;
                 left: 50%;
@@ -2823,240 +2824,238 @@
                 z-index: 100000;
                 animation: slideUp 0.3s ease;
             `;
-                document.body.appendChild(toast);
-                setTimeout(() => {
-                    toast.remove();
-                }, 3000);
-            }
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
 
-            // --- Image Compression Wrapper ---
-            function compressImage(file, maxWidth = 800, quality = 0.7) {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.readAsDataURL(file);
-                    reader.onload = (event) => {
-                        const img = new Image();
-                        img.src = event.target.result;
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            let width = img.width;
-                            let height = img.height;
+        // --- Image Compression Wrapper ---
+        function compressImage(file, maxWidth = 800, quality = 0.7) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
 
-                            if (width > maxWidth) {
-                                height = Math.round((height * maxWidth) / width);
-                                width = maxWidth;
-                            }
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
 
-                            canvas.width = width;
-                            canvas.height = height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0, width, height);
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
 
-                            // Compress
-                            resolve(canvas.toDataURL('image/jpeg', quality));
-                        };
-                        img.onerror = (error) => reject(error);
+                        // Compress
+                        resolve(canvas.toDataURL('image/jpeg', quality));
                     };
-                    reader.onerror = (error) => reject(error);
-                });
-            }
-
-            function checkout() {
-                const name = document.getElementById('c-name').value, meth = document.getElementById('del-method').value;
-                if (!name) return alert("الاسم مطلوب");
-                if (meth !== 'dinein' && !confirm("هل قمت بالتحويل وتصوير لقطة الشاشة؟")) return;
-
-                let orderNum = localStorage.getItem('oudelle_order_counter') || 0;
-                orderNum = parseInt(orderNum) + 1;
-                localStorage.setItem('oudelle_order_counter', orderNum);
-
-                // --- Structured WhatsApp Template ---
-                let text = `🌟 *طلب جديد من أوديل* 🌟\n`;
-                text += `------------------------------------------\n`;
-                text += `📦 *رقم الأوردر: #${orderNum}* 📦\n`;
-                text += `------------------------------------------\n\n`;
-
-                text += `👤 *بيانات العميل:*\n`;
-                text += `• الاسم: ${name}\n`;
-                if (meth !== 'dinein') {
-                    text += `• الهاتف: ${document.getElementById('c-phone').value}\n`;
-                }
-                text += `\n`;
-
-                text += `📍 *تفاصيل الطلب:*\n`;
-                const methAr = (meth === 'delivery') ? 'توصيل للمنزل 🏠' : (meth === 'pickup' ? 'استلام من الفرع 🥯' : 'داخل المطعم 🍽️');
-                text += `• النوع: ${methAr}\n`;
-
-                if (meth === 'dinein') {
-                    text += `• الطاولة: ${selectedTableNumber}\n`;
-                } else {
-                    text += `• الدفع: InstaPay ✅\n`;
-                    if (meth === 'delivery') {
-                        text += `• العنوان: ${document.getElementById('c-addr').value}\n`;
-                    }
-                }
-
-                const ordDate = document.getElementById('order-date').value;
-                const ordTime = document.getElementById('order-time').value;
-                if (ordDate || ordTime) {
-                    text += `• الموعد: ${ordDate || 'اليوم'} في ${ordTime || 'أقرب وقت'}\n`;
-                }
-                text += `\n`;
-
-                text += `🧁 *الأصناف المطلوبة:*\n`;
-                text += cart.map(it => `• ${it.name} — ${it.price.toFixed(2)} ج`).join('\n');
-                text += `\n\n`;
-
-                text += `💰 *الحساب النهائي:*\n`;
-                const subtotal = cart.reduce((s, it) => s + it.price, 0);
-                text += `• الإجمالي: ${subtotal.toFixed(2)} ج\n`;
-                if (appliedDiscount > 0) {
-                    text += `• الخصم: ${(appliedDiscount * 100)}%\n`;
-                }
-
-                if (meth === 'delivery') {
-                    const shipping = parseInt(document.getElementById('area-select').value);
-                    text += `• التوصيل: ${shipping} ج\n`;
-                }
-
-                text += `\n💵 *المطلوب دفعه: ${document.getElementById('total-price').innerText}* 💵\n`;
-                text += `------------------------------------------\n`;
-                text += `شكراً لاختياركم أوديل! ❤️✨`;
-
-                database.stats.totalOrders++;
-                database.stats.totalRevenue += subtotal;
-
-                const orderDetails = {
-                    num: orderNum,
-                    name: name,
-                    phone: document.getElementById('c-phone').value,
-                    addr: document.getElementById('c-addr').value,
-                    meth: meth,
-                    table: selectedTableNumber,
-                    items: JSON.parse(JSON.stringify(cart)),
-                    subtotal: subtotal,
-                    discount: appliedDiscount,
-                    shipping: (meth === 'delivery') ? parseInt(document.getElementById('area-select').value) : 0,
-                    total: parseFloat(document.getElementById('total-price').innerText.replace(/[^0-9.]/g, '')),
-                    date: new Date().toLocaleString('ar-EG'),
-                    scheduled: { date: document.getElementById('order-date').value, time: document.getElementById('order-time').value }
+                    img.onerror = (error) => reject(error);
                 };
-                database.orders.unshift(orderDetails);
-                if (database.orders.length > 50) database.orders.pop();
+                reader.onerror = (error) => reject(error);
+            });
+        }
 
-                saveAdminChanges();
+        function checkout() {
+            const name = document.getElementById('c-name').value, meth = document.getElementById('del-method').value;
+            if (!name) return alert("الاسم مطلوب");
+            if (meth !== 'dinein' && !confirm("هل قمت بالتحويل وتصوير لقطة الشاشة؟")) return;
 
-                const waUrl = `https://wa.me/${WHATSAPP_NUM}?text=${encodeURIComponent(text)}`;
-                showOrderAnimation(waUrl);
+            let orderNum = localStorage.getItem('oudelle_order_counter') || 0;
+            orderNum = parseInt(orderNum) + 1;
+            localStorage.setItem('oudelle_order_counter', orderNum);
 
-                // Show Simulation
-                showCart(); // close cart
-                cart = []; localStorage.removeItem('oudelle_cart'); renderCart(); // Clear cart after order
+            // --- Structured WhatsApp Template ---
+            let text = `🌟 *طلب جديد من أوديل* 🌟\n`;
+            text += `------------------------------------------\n`;
+            text += `📦 *رقم الأوردر: #${orderNum}* 📦\n`;
+            text += `------------------------------------------\n\n`;
+
+            text += `👤 *بيانات العميل:*\n`;
+            text += `• الاسم: ${name}\n`;
+            if (meth !== 'dinein') {
+                text += `• الهاتف: ${document.getElementById('c-phone').value}\n`;
             }
+            text += `\n`;
 
-            function showOrderAnimation(url) {
-                const overlay = document.getElementById('order-success-overlay');
-                const confettiCont = document.getElementById('confetti-container');
-                overlay.style.display = 'flex';
+            text += `📍 *تفاصيل الطلب:*\n`;
+            const methAr = (meth === 'delivery') ? 'توصيل للمنزل 🏠' : (meth === 'pickup' ? 'استلام من الفرع 🥯' : 'داخل المطعم 🍽️');
+            text += `• النوع: ${methAr}\n`;
 
-                // Create luxurious particles (gold/white)
-                confettiCont.innerHTML = '';
-                for (let i = 0; i < 50; i++) {
-                    const p = document.createElement('div');
-                    p.style.position = 'absolute';
-                    p.style.width = Math.random() * 8 + 4 + 'px';
-                    p.style.height = p.style.width;
-                    p.style.background = Math.random() > 0.5 ? '#fbbf24' : '#ffffff';
-                    p.style.borderRadius = '50%';
-                    p.style.left = Math.random() * 100 + '%';
-                    p.style.top = '-10%';
-                    p.style.opacity = Math.random();
-                    p.style.transition = `all ${2 + Math.random() * 3}s linear`;
-                    confettiCont.appendChild(p);
-
-                    setTimeout(() => {
-                        p.style.top = '110%';
-                        p.style.left = (parseFloat(p.style.left) + (Math.random() * 20 - 10)) + '%';
-                        p.style.transform = `rotate(${Math.random() * 360}deg)`;
-                    }, 100);
-                }
-
-                // Redirect after animation stages (approx 5s)
-                window.pendingWaUrl = url;
-                const fallbackBtn = document.getElementById('wa-fallback-btn');
-
-                setTimeout(() => {
-                    fallbackBtn.style.display = 'inline-block';
-                    window.location.href = url;
-                }, 5500);
-
-                // Hide overlay after return (or after a long timeout)
-                setTimeout(() => {
-                    overlay.style.opacity = '0';
-                    setTimeout(() => {
-                        overlay.style.display = 'none';
-                        overlay.style.opacity = '1';
-                    }, 1000);
-                }, 8000);
-            }
-
-            function updateTotal() {
-                const subtotal = cart.reduce((s, it) => s + it.price, 0);
-                const areaSel = document.getElementById('area-select');
-                let shipping = (document.getElementById('del-method').value === 'delivery' && areaSel) ? parseInt(areaSel.value) : 0;
-                const total = (subtotal + shipping) * (1 - appliedDiscount);
-                document.getElementById('total-price').innerText = `الإجمالي: ${total.toFixed(2)} ج.م`;
-            }
-
-            function toggleFields() {
-                const m = document.getElementById('del-method').value;
-                document.getElementById('dinein-field').classList.toggle('hidden', m !== 'dinein');
-                document.getElementById('waiter-field').classList.toggle('hidden', m !== 'dinein');
-                document.getElementById('delivery-field').classList.toggle('hidden', m !== 'delivery');
-                document.getElementById('phone-field').classList.toggle('hidden', m === 'dinein');
-                document.getElementById('instapay-ui').style.display = (m === 'dinein') ? 'none' : 'block';
-
-                // Show scheduling button only for delivery/pickup
-                const showToggle = (m === 'delivery' || m === 'pickup');
-                document.getElementById('schedule-toggle-container').classList.toggle('hidden', !showToggle);
-
-                // Auto-hide schedule fields when changing method
-                document.getElementById('schedule-field').classList.add('hidden');
-
-                updateTotal();
-            }
-
-            function toggleSchedule() {
-                const field = document.getElementById('schedule-field');
-                field.classList.toggle('hidden');
-                if (!field.classList.contains('hidden')) {
-                    field.scrollIntoView({ behavior: 'smooth' });
+            if (meth === 'dinein') {
+                text += `• الطاولة: ${selectedTableNumber}\n`;
+            } else {
+                text += `• الدفع: InstaPay ✅\n`;
+                if (meth === 'delivery') {
+                    text += `• العنوان: ${document.getElementById('c-addr').value}\n`;
                 }
             }
 
-            // --- Admin Enhancements for Advanced Features ---
-            function renderAdmTable() {
-                const tableBody = document.getElementById('adm-items-table');
-                const items = database[admCurrentCat] || [];
+            const ordDate = document.getElementById('order-date').value;
+            const ordTime = document.getElementById('order-time').value;
+            if (ordDate || ordTime) {
+                text += `• الموعد: ${ordDate || 'اليوم'} في ${ordTime || 'أقرب وقت'}\n`;
+            }
+            text += `\n`;
 
-                tableBody.innerHTML = items.map((p, index) => `
-                <tr>
-                    <td><img src="${p.img || 'https://via.placeholder.com/50'}" style="width:40px; height:40px; object-fit:cover; border-radius:5px;"></td>
-                    <td>${p.isMix ? p.title : p.name}</td>
-                    <td>
-                        ${p.isMix ? '---' : `<input type="number" value="${p.price}" 
-                                style="width:70px; padding:3px; border:1px solid #ddd; border-radius:5px;"
-                                onchange="admUpdateCurrentPrice('${admCurrentCat}', ${index}, this.value)"> ج`}
-                    </td>
-                    <td>
-                        ${p.isMix ? '---' : `<input type="number" value="${p.oldPrice || ''}"
-                                style="width:70px; padding:3px; border:1px solid #ddd; border-radius:5px;"
-                                onchange="admUpdateOldPrice('${admCurrentCat}', ${index}, this.value)"> ج`}
-                    </td>
-                    <td>${p.isMix ? 'مكس' : (p.type === 'kg' ? 'كيلو' : 'قطعة')}</td>
-                    <td>${p.isMix ? '---' : (p.options && p.options.length ? `(متعدد)` : 'ساده')}</td>
-                    <td>
-                        <button class="admin-btn" style="width:auto; padding:2px 8px; background:${p.isBestSeller ? '#ff9800' : '#ccc'};"
+            text += `🧁 *الأصناف المطلوبة:*\n`;
+            text += cart.map(it => `• ${it.name} — ${it.price.toFixed(2)} ج`).join('\n');
+            text += `\n\n`;
+
+            text += `💰 *الحساب النهائي:*\n`;
+            const subtotal = cart.reduce((s, it) => s + it.price, 0);
+            text += `• الإجمالي: ${subtotal.toFixed(2)} ج\n`;
+            if (appliedDiscount > 0) {
+                text += `• الخصم: ${(appliedDiscount * 100)}%\n`;
+            }
+
+            if (meth === 'delivery') {
+                const shipping = parseInt(document.getElementById('area-select').value);
+                text += `• التوصيل: ${shipping} ج\n`;
+            }
+
+            text += `\n💵 *المطلوب دفعه: ${document.getElementById('total-price').innerText}* 💵\n`;
+            text += `------------------------------------------\n`;
+            text += `شكراً لاختياركم أوديل! ❤️✨`;
+
+            database.stats.totalOrders++;
+            database.stats.totalRevenue += subtotal;
+
+            const orderDetails = {
+                num: orderNum,
+                name: name,
+                phone: document.getElementById('c-phone').value,
+                addr: document.getElementById('c-addr').value,
+                meth: meth,
+                table: selectedTableNumber,
+                items: JSON.parse(JSON.stringify(cart)),
+                subtotal: subtotal,
+                discount: appliedDiscount,
+                shipping: (meth === 'delivery') ? parseInt(document.getElementById('area-select').value) : 0,
+                total: parseFloat(document.getElementById('total-price').innerText.replace(/[^0-9.]/g, '')),
+                date: new Date().toLocaleString('ar-EG'),
+                scheduled: { date: document.getElementById('order-date').value, time: document.getElementById('order-time').value }
+            };
+            database.orders.unshift(orderDetails);
+            if (database.orders.length > 50) database.orders.pop();
+
+            saveAdminChanges();
+
+            const waUrl = `https://wa.me/${WHATSAPP_NUM}?text=${encodeURIComponent(text)}`;
+            showOrderAnimation(waUrl);
+
+            // Show Simulation
+            showCart(); // close cart
+            cart = []; localStorage.removeItem('oudelle_cart'); renderCart(); // Clear cart after order
+        }
+
+        function showOrderAnimation(url) {
+            const overlay = document.getElementById('order-success-overlay');
+            const confettiCont = document.getElementById('confetti-container');
+            overlay.style.display = 'flex';
+
+            // Create luxurious particles (gold/white)
+            confettiCont.innerHTML = '';
+            for (let i = 0; i < 50; i++) {
+                const p = document.createElement('div');
+                p.style.position = 'absolute';
+                p.style.width = Math.random() * 8 + 4 + 'px';
+                p.style.height = p.style.width;
+                p.style.background = Math.random() > 0.5 ? '#fbbf24' : '#ffffff';
+                p.style.borderRadius = '50%';
+                p.style.left = Math.random() * 100 + '%';
+                p.style.top = '-10%';
+                p.style.opacity = Math.random();
+                p.style.transition = `all ${2 + Math.random() * 3}s linear`;
+                confettiCont.appendChild(p);
+
+                setTimeout(() => {
+                    p.style.top = '110%';
+                    p.style.left = (parseFloat(p.style.left) + (Math.random() * 20 - 10)) + '%';
+                    p.style.transform = `rotate(${Math.random() * 360}deg)`;
+                }, 100);
+            }
+
+            // Redirect after animation stages (approx 5s)
+            window.pendingWaUrl = url;
+            const fallbackBtn = document.getElementById('wa-fallback-btn');
+
+            setTimeout(() => {
+                fallbackBtn.style.display = 'inline-block';
+                window.location.href = url;
+            }, 5500);
+
+            // Hide overlay after return (or after a long timeout)
+            setTimeout(() => {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    overlay.style.opacity = '1';
+                }, 1000);
+            }, 8000);
+        }
+
+        function updateTotal() {
+            const subtotal = cart.reduce((s, it) => s + it.price, 0);
+            const areaSel = document.getElementById('area-select');
+            let shipping = (document.getElementById('del-method').value === 'delivery' && areaSel) ? parseInt(areaSel.value) : 0;
+            const total = (subtotal + shipping) * (1 - appliedDiscount);
+            document.getElementById('total-price').innerText = `الإجمالي: ${total.toFixed(2)} ج.م`;
+        }
+
+        function toggleFields() {
+            const m = document.getElementById('del-method').value;
+            document.getElementById('dinein-field').classList.toggle('hidden', m !== 'dinein');
+            document.getElementById('waiter-field').classList.toggle('hidden', m !== 'dinein');
+            document.getElementById('delivery-field').classList.toggle('hidden', m !== 'delivery');
+            document.getElementById('phone-field').classList.toggle('hidden', m === 'dinein');
+            document.getElementById('instapay-ui').style.display = (m === 'dinein') ? 'none' : 'block';
+
+            // Show scheduling button only for delivery/pickup
+            const showToggle = (m === 'delivery' || m === 'pickup');
+            document.getElementById('schedule-toggle-container').classList.toggle('hidden', !showToggle);
+
+            // Auto-hide schedule fields when changing method
+            document.getElementById('schedule-field').classList.add('hidden');
+
+            updateTotal();
+        }
+
+        function toggleSchedule() {
+            const field = document.getElementById('schedule-field');
+            field.classList.toggle('hidden');
+            if (!field.classList.contains('hidden')) {
+                field.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // --- Admin Enhancements for Advanced Features ---
+        function renderAdmTable() {
+            const tableBody = document.getElementById('adm-items-table');
+            const items = database[admCurrentCat] || [];
+
+            tableBody.innerHTML = items.map((p, index) => {
+                const priceField = p.isMix ? '---' : `<input type="number" value="${p.price}" style="width:70px; padding:3px; border:1px solid #ddd; border-radius:5px;" onchange="admUpdateCurrentPrice('${admCurrentCat}', ${index}, this.value)"> ج`;
+                const oldPriceField = p.isMix ? '---' : `<input type="number" value="${p.oldPrice || ''}" style="width:70px; padding:3px; border:1px solid #ddd; border-radius:5px;" onchange="admUpdateOldPrice('${admCurrentCat}', ${index}, this.value)"> ج`;
+                const typeText = p.isMix ? 'مكس' : (p.type === 'kg' ? 'كيلو' : 'قطعة');
+                const optionsText = p.isMix ? '---' : (p.options && p.options.length ? `(متعدد)` : 'ساده');
+
+                return `
+                    <tr>
+                        <td><img src="${p.img || 'https://via.placeholder.com/50'}" style="width:40px; height:40px; object-fit:cover; border-radius:5px;"></td>
+                        <td>${p.isMix ? p.title : p.name}</td>
+                        <td>${priceField}</td>
+                        <td>${oldPriceField}</td>
+                        <td>${typeText}</td>
+                        <td>${optionsText}</td>
+                        <td>
+                            <button class="admin-btn" style="width:auto; padding:2px 8px; background:${p.isBestSeller ? '#ff9800' : '#ccc'};"
                                 onclick="admToggleBestSeller('${admCurrentCat}', ${index})">🔥 الأكثر</button>
                         <button class="admin-btn" style="width:auto; padding:2px 8px; background:${p.isVIP ? 'gold' : '#ccc'}; margin-top:3px;"
                                 onclick="admToggleVIP('${admCurrentCat}', ${index})">👑 VIP</button>
@@ -3075,407 +3074,409 @@
                         <button class="admin-btn" style="width:auto; padding:2px 8px; background:#ef4444;" 
                                 onclick="admDeleteProduct('${admCurrentCat}', ${index})">حذف</button>
                     </td>
-                </tr>
+                </tr >
+            `}.join('');
+        }{;
+        tableBody.innerHTML = html;
+        }
+
+        function admToggleVIP(cat, idx) {
+            database[cat][idx].isVIP = !database[cat][idx].isVIP;
+            saveAdminChanges();
+            renderAdmTable();
+            syncUI();
+        }
+
+        function admToggleStock(cat, index) {
+            database[cat][index].inStock = !(database[cat][index].inStock !== false);
+            saveAdminChanges();
+            renderAdmTable();
+            syncUI();
+        }
+
+        function admDeleteProduct(cat, index) {
+            if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
+            database[cat].splice(index, 1);
+            saveAdminChanges();
+            renderAdmTable();
+            syncUI();
+        }
+
+        function admSaveSettings() {
+            const wa = document.getElementById('adm-wa-num').value;
+            const ticker = document.getElementById('adm-ticker-text').value;
+            if (!wa) return alert("يرجى إدخال رقم واتساب");
+            database.settings.whatsapp = wa;
+            database.settings.ticker = ticker;
+            WHATSAPP_NUM = wa;
+            TICKER_TEXT = ticker;
+            const tickerEl = document.querySelector('.ticker');
+            if (tickerEl) tickerEl.innerText = ticker;
+            saveAdminChanges();
+            alert("✅ تم حفظ الإعدادات بنجاح");
+        }
+
+        function renderAdmVouchers() {
+            const list = document.getElementById('adm-vouchers-list');
+            const v = database.vouchers || {};
+            list.innerHTML = Object.entries(v).map(([code, perc]) => `
+            < div style = "background:#e0f2fe; padding:5px 10px; border-radius:15px; display:flex; gap:8px; align-items:center; font-size:0.85rem;" >
+                <b>${code}</b> (${perc * 100}%)
+        <button onclick="admRemoveVoucher('${code}')" style="border:none; background:none; color:red; cursor:pointer;">✖</button>
+                </div >
             `).join('');
-            }
+        }
 
-            function admToggleVIP(cat, idx) {
-                database[cat][idx].isVIP = !database[cat][idx].isVIP;
-                saveAdminChanges();
-                renderAdmTable();
-                syncUI();
-            }
+        function admAddVoucher() {
+            const code = document.getElementById('adm-v-code').value.toUpperCase();
+            const perc = parseFloat(document.getElementById('adm-v-perc').value) / 100;
+            if (!code || isNaN(perc)) return alert("يرجى إدخال بيانات صحيحة");
+            database.vouchers[code] = perc;
+            saveAdminChanges();
+            renderAdmVouchers();
+            document.getElementById('adm-v-code').value = '';
+            document.getElementById('adm-v-perc').value = '';
+        }
 
-            function admToggleStock(cat, index) {
-                database[cat][index].inStock = !(database[cat][index].inStock !== false);
-                saveAdminChanges();
-                renderAdmTable();
-                syncUI();
-            }
+        function admRemoveVoucher(code) {
+            delete database.vouchers[code];
+            saveAdminChanges();
+            renderAdmVouchers();
+        }
 
-            function admDeleteProduct(cat, index) {
-                if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
-                database[cat].splice(index, 1);
-                saveAdminChanges();
-                renderAdmTable();
-                syncUI();
-            }
-
-            function admSaveSettings() {
-                const wa = document.getElementById('adm-wa-num').value;
-                const ticker = document.getElementById('adm-ticker-text').value;
-                if (!wa) return alert("يرجى إدخال رقم واتساب");
-                database.settings.whatsapp = wa;
-                database.settings.ticker = ticker;
-                WHATSAPP_NUM = wa;
-                TICKER_TEXT = ticker;
-                const tickerEl = document.querySelector('.ticker');
-                if (tickerEl) tickerEl.innerText = ticker;
-                saveAdminChanges();
-                alert("✅ تم حفظ الإعدادات بنجاح");
-            }
-
-            function renderAdmVouchers() {
-                const list = document.getElementById('adm-vouchers-list');
-                const v = database.vouchers || {};
-                list.innerHTML = Object.entries(v).map(([code, perc]) => `
-                <div style="background:#e0f2fe; padding:5px 10px; border-radius:15px; display:flex; gap:8px; align-items:center; font-size:0.85rem;">
-                    <b>${code}</b> (${perc * 100}%)
-                    <button onclick="admRemoveVoucher('${code}')" style="border:none; background:none; color:red; cursor:pointer;">✖</button>
-                </div>
-            `).join('');
-            }
-
-            function admAddVoucher() {
-                const code = document.getElementById('adm-v-code').value.toUpperCase();
-                const perc = parseFloat(document.getElementById('adm-v-perc').value) / 100;
-                if (!code || isNaN(perc)) return alert("يرجى إدخال بيانات صحيحة");
-                database.vouchers[code] = perc;
-                saveAdminChanges();
-                renderAdmVouchers();
-                document.getElementById('adm-v-code').value = '';
-                document.getElementById('adm-v-perc').value = '';
-            }
-
-            function admRemoveVoucher(code) {
-                delete database.vouchers[code];
-                saveAdminChanges();
-                renderAdmVouchers();
-            }
-
-            function renderAdmAreas() {
-                const list = document.getElementById('adm-areas-list');
-                const areas = database.delivery || [];
-                list.innerHTML = areas.map((a, i) => `
-                <div style="background:#fef3c7; padding:5px 10px; border-radius:15px; display:flex; gap:8px; align-items:center; font-size:0.85rem;">
-                    <b>${a.name}</b> (${a.price}ج)
-                    <button onclick="admRemoveArea(${i})" style="border:none; background:none; color:red; cursor:pointer;">✖</button>
-                </div>
+        function renderAdmAreas() {
+            const list = document.getElementById('adm-areas-list');
+            const areas = database.delivery || [];
+            list.innerHTML = areas.map((a, i) => `
+            < div style = "background:#fef3c7; padding:5px 10px; border-radius:15px; display:flex; gap:8px; align-items:center; font-size:0.85rem;" >
+                <b>${a.name}</b> (${a.price}ج)
+        <button onclick="admRemoveArea(${i})" style="border:none; background:none; color:red; cursor:pointer;">✖</button>
+                </div >
             `).join('');
 
-                // Update the actual select in cart
-                const select = document.getElementById('area-select');
-                if (select) {
-                    select.innerHTML = areas.map(a => `<option value="${a.price}">${a.name}</option>`).join('');
-                }
+            // Update the actual select in cart
+            const select = document.getElementById('area-select');
+            if (select) {
+                select.innerHTML = areas.map(a => `< option value = "${a.price}" > ${a.name}</option > `).join('');
+            }
+        }
+
+        function admAddArea() {
+            const name = document.getElementById('adm-area-name').value;
+            const price = parseInt(document.getElementById('adm-area-price').value);
+            if (!name || isNaN(price)) return alert("يرجى إدخال بيانات صحيحة");
+            database.delivery.push({ name, price });
+            saveAdminChanges();
+            renderAdmAreas();
+            document.getElementById('adm-area-name').value = '';
+            document.getElementById('adm-area-price').value = '';
+        }
+
+        function admRemoveArea(i) {
+            database.delivery.splice(i, 1);
+            saveAdminChanges();
+            renderAdmAreas();
+        }
+
+        function admToggleDiscount(cat, index) {
+            database[cat][index].isDiscount = !database[cat][index].isDiscount;
+            saveAdminChanges();
+            renderAdmTable();
+            syncUI();
+        }
+
+        function admAddProduct() {
+            const cat = document.getElementById('adm-cat').value;
+            const name = document.getElementById('adm-name').value;
+            const price = parseFloat(document.getElementById('adm-price').value);
+            const oldPriceValue = document.getElementById('adm-old-price').value;
+            const oldPrice = oldPriceValue ? parseFloat(oldPriceValue) : null;
+            const type = document.getElementById('adm-type').value;
+            const optionsStr = document.getElementById('adm-type-custom').value;
+            const img = document.getElementById('adm-img').value;
+            const editIndex = parseInt(document.getElementById('adm-edit-mode-index').value);
+
+            if (!name || isNaN(price)) return alert('يرجى إكمال البيانات');
+
+            const options = optionsStr ? optionsStr.split('\n').map(s => s.trim()).filter(s => s) : null;
+
+            if (editIndex >= 0) {
+                // Update Existing
+                const p = database[cat][editIndex];
+                p.name = name;
+                p.price = price;
+                p.oldPrice = oldPrice;
+                p.type = type;
+                p.options = options;
+                p.img = img;
+                alert("✅ تم تعديل المنتج بنجاح");
+            } else {
+                // Add New
+                const newP = { name, price, oldPrice, type, options, img: img || "", inStock: true, isDiscount: false, isVIP: false };
+                if (!database[cat]) database[cat] = [];
+                database[cat].unshift(newP);
+                alert("✅ تم إضافة المنتج بنجاح");
             }
 
-            function admAddArea() {
-                const name = document.getElementById('adm-area-name').value;
-                const price = parseInt(document.getElementById('adm-area-price').value);
-                if (!name || isNaN(price)) return alert("يرجى إدخال بيانات صحيحة");
-                database.delivery.push({ name, price });
-                saveAdminChanges();
-                renderAdmAreas();
-                document.getElementById('adm-area-name').value = '';
-                document.getElementById('adm-area-price').value = '';
-            }
+            saveAdminChanges();
+            admCancelEdit(); // Reset form
+            renderAdmTable();
+            syncUI();
+        }
 
-            function admRemoveArea(i) {
-                database.delivery.splice(i, 1);
-                saveAdminChanges();
-                renderAdmAreas();
-            }
+        function admEditProduct(cat, index) {
+            const p = database[cat][index];
+            if (!p) return;
 
-            function admToggleDiscount(cat, index) {
-                database[cat][index].isDiscount = !database[cat][index].isDiscount;
+            document.getElementById('adm-cat').value = cat;
+            document.getElementById('adm-cat').disabled = true;
+            document.getElementById('adm-name').value = p.name;
+            document.getElementById('adm-price').value = p.price;
+            document.getElementById('adm-old-price').value = p.oldPrice || '';
+            document.getElementById('adm-type').value = p.type;
+            document.getElementById('adm-type-custom').value = p.options ? p.options.join('\n') : '';
+            document.getElementById('adm-img').value = p.img || '';
+
+            document.getElementById('adm-edit-mode-index').value = index;
+            document.getElementById('adm-action-btn').innerText = "حفظ التعديلات 💾";
+            document.getElementById('adm-action-btn').style.background = "#2196f3";
+            document.getElementById('adm-cancel-edit-btn').style.display = "inline-block";
+
+            // Scroll to form
+            document.querySelector('.admin-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function admCancelEdit() {
+            document.getElementById('adm-cat').disabled = false;
+            document.getElementById('adm-name').value = '';
+            document.getElementById('adm-price').value = '';
+            document.getElementById('adm-old-price').value = '';
+            document.getElementById('adm-type-custom').value = '';
+            document.getElementById('adm-img').value = '';
+            document.getElementById('adm-edit-mode-index').value = '-1';
+
+            const btn = document.getElementById('adm-action-btn');
+            btn.innerText = "إضافة المنتج";
+            btn.style.background = "var(--primary)";
+            document.getElementById('adm-cancel-edit-btn').style.display = "none";
+        }
+
+        function admUpdateOptions(cat, index, val) {
+            database[cat][index].options = val ? val.split('\n').map(s => s.trim()).filter(s => s) : null;
+            saveAdminChanges();
+            syncUI();
+        }
+
+        function admUpdateOldPrice(cat, index, val) {
+            const v = parseFloat(val);
+            database[cat][index].oldPrice = isNaN(v) ? null : v;
+            saveAdminChanges();
+            syncUI();
+        }
+
+        function admUpdateCurrentPrice(cat, index, val) {
+            const v = parseFloat(val);
+            if (!isNaN(v)) {
+                database[cat][index].price = v;
                 saveAdminChanges();
-                renderAdmTable();
                 syncUI();
             }
+        }
 
-            function admAddProduct() {
-                const cat = document.getElementById('adm-cat').value;
-                const name = document.getElementById('adm-name').value;
-                const price = parseFloat(document.getElementById('adm-price').value);
-                const oldPriceValue = document.getElementById('adm-old-price').value;
-                const oldPrice = oldPriceValue ? parseFloat(oldPriceValue) : null;
-                const type = document.getElementById('adm-type').value;
-                const optionsStr = document.getElementById('adm-type-custom').value;
-                const img = document.getElementById('adm-img').value;
-                const editIndex = parseInt(document.getElementById('adm-edit-mode-index').value);
+        // --- Category Management ---
+        function renderCategories() {
+            const container = document.getElementById('category-tabs-container');
+            if (!container) return;
+            container.innerHTML = (database.categories || []).map(c => `
+            < button class="tab ${c.id === currentCat ? 'active' : ''}" onclick = "render('${c.id}', this)" > ${c.name}</button >
+                `).join('');
+        }
 
-                if (!name || isNaN(price)) return alert('يرجى إكمال البيانات');
-
-                const options = optionsStr ? optionsStr.split('\n').map(s => s.trim()).filter(s => s) : null;
-
-                if (editIndex >= 0) {
-                    // Update Existing
-                    const p = database[cat][editIndex];
-                    p.name = name;
-                    p.price = price;
-                    p.oldPrice = oldPrice;
-                    p.type = type;
-                    p.options = options;
-                    p.img = img;
-                    alert("✅ تم تعديل المنتج بنجاح");
-                } else {
-                    // Add New
-                    const newP = { name, price, oldPrice, type, options, img: img || "", inStock: true, isDiscount: false, isVIP: false };
-                    if (!database[cat]) database[cat] = [];
-                    database[cat].unshift(newP);
-                    alert("✅ تم إضافة المنتج بنجاح");
-                }
-
-                saveAdminChanges();
-                admCancelEdit(); // Reset form
-                renderAdmTable();
-                syncUI();
-            }
-
-            function admEditProduct(cat, index) {
-                const p = database[cat][index];
-                if (!p) return;
-
-                document.getElementById('adm-cat').value = cat;
-                document.getElementById('adm-cat').disabled = true;
-                document.getElementById('adm-name').value = p.name;
-                document.getElementById('adm-price').value = p.price;
-                document.getElementById('adm-old-price').value = p.oldPrice || '';
-                document.getElementById('adm-type').value = p.type;
-                document.getElementById('adm-type-custom').value = p.options ? p.options.join('\n') : '';
-                document.getElementById('adm-img').value = p.img || '';
-
-                document.getElementById('adm-edit-mode-index').value = index;
-                document.getElementById('adm-action-btn').innerText = "حفظ التعديلات 💾";
-                document.getElementById('adm-action-btn').style.background = "#2196f3";
-                document.getElementById('adm-cancel-edit-btn').style.display = "inline-block";
-
-                // Scroll to form
-                document.querySelector('.admin-section').scrollIntoView({ behavior: 'smooth' });
-            }
-
-            function admCancelEdit() {
-                document.getElementById('adm-cat').disabled = false;
-                document.getElementById('adm-name').value = '';
-                document.getElementById('adm-price').value = '';
-                document.getElementById('adm-old-price').value = '';
-                document.getElementById('adm-type-custom').value = '';
-                document.getElementById('adm-img').value = '';
-                document.getElementById('adm-edit-mode-index').value = '-1';
-
-                const btn = document.getElementById('adm-action-btn');
-                btn.innerText = "إضافة المنتج";
-                btn.style.background = "var(--primary)";
-                document.getElementById('adm-cancel-edit-btn').style.display = "none";
-            }
-
-            function admUpdateOptions(cat, index, val) {
-                database[cat][index].options = val ? val.split('\n').map(s => s.trim()).filter(s => s) : null;
-                saveAdminChanges();
-                syncUI();
-            }
-
-            function admUpdateOldPrice(cat, index, val) {
-                const v = parseFloat(val);
-                database[cat][index].oldPrice = isNaN(v) ? null : v;
-                saveAdminChanges();
-                syncUI();
-            }
-
-            function admUpdateCurrentPrice(cat, index, val) {
-                const v = parseFloat(val);
-                if (!isNaN(v)) {
-                    database[cat][index].price = v;
-                    saveAdminChanges();
-                    syncUI();
-                }
-            }
-
-            // --- Category Management ---
-            function renderCategories() {
-                const container = document.getElementById('category-tabs-container');
-                if (!container) return;
-                container.innerHTML = (database.categories || []).map(c => `
-                <button class="tab ${c.id === currentCat ? 'active' : ''}" onclick="render('${c.id}', this)">${c.name}</button>
-            `).join('');
-            }
-
-            function renderAdmCategoriesList() {
-                const list = document.getElementById('adm-cats-list');
-                if (!list) return;
-                list.innerHTML = (database.categories || []).map((c, i) => `
-                <div style="background:#e0f2fe; padding:5px 10px; border-radius:15px; display:flex; gap:8px; align-items:center; font-size:0.85rem;">
+        function renderAdmCategoriesList() {
+            const list = document.getElementById('adm-cats-list');
+            if (!list) return;
+            list.innerHTML = (database.categories || []).map((c, i) => `
+                < div style = "background:#e0f2fe; padding:5px 10px; border-radius:15px; display:flex; gap:8px; align-items:center; font-size:0.85rem;" >
                     <b>${c.name}</b>
                     ${['oriental', 'nabulsia', 'dairy', 'jordanian', 'Westernsweets', 'offers', 'drinks'].includes(c.id) ? '' : `<button onclick="admDeleteCategory(${i})" style="border:none; background:none; color:red; cursor:pointer;">✖</button>`}
-                </div>
+                </div >
             `).join('');
 
-                // Update Admin Select
-                const sel = document.getElementById('adm-cat');
-                if (sel) {
-                    sel.innerHTML = (database.categories || []).map(c => `<option value="${c.id}" ${c.id === admCurrentCat ? 'selected' : ''}>${c.name}</option>`).join('');
-                }
+            // Update Admin Select
+            const sel = document.getElementById('adm-cat');
+            if (sel) {
+                sel.innerHTML = (database.categories || []).map(c => `< option value = "${c.id}" ${c.id === admCurrentCat ? 'selected' : ''}> ${c.name}</option > `).join('');
             }
+        }
 
-            function admAddCategory() {
-                const name = document.getElementById('adm-new-cat-name').value;
-                const id = document.getElementById('adm-new-cat-id').value.toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (!name || !id) return alert("يرجى إدخال اسم وكود صحيح للقسم");
-                if (database.categories.find(c => c.id === id)) return alert("هذا الكود مستخدم بالفعل");
+        function admAddCategory() {
+            const name = document.getElementById('adm-new-cat-name').value;
+            const id = document.getElementById('adm-new-cat-id').value.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (!name || !id) return alert("يرجى إدخال اسم وكود صحيح للقسم");
+            if (database.categories.find(c => c.id === id)) return alert("هذا الكود مستخدم بالفعل");
 
-                database.categories.push({ id, name });
-                database[id] = []; // Initialize empty array for products
+            database.categories.push({ id, name });
+            database[id] = []; // Initialize empty array for products
+            saveAdminChanges();
+            document.getElementById('adm-new-cat-name').value = '';
+            document.getElementById('adm-new-cat-id').value = '';
+            syncUI();
+            alert("✅ تم إضافة القسم بنجاح");
+        }
+
+        function admDeleteCategory(index) {
+            const cat = database.categories[index];
+            if (!cat) return;
+            if (confirm(`هل أنت متأكد من حذف قسم "${cat.name}" وكل المنتجات بداخله؟`)) {
+                delete database[cat.id]; // Remove products
+                database.categories.splice(index, 1);
+                // Reset current cat if deleted
+                if (currentCat === cat.id) currentCat = database.categories[0].id;
+                if (admCurrentCat === cat.id) admCurrentCat = database.categories[0].id;
+
                 saveAdminChanges();
-                document.getElementById('adm-new-cat-name').value = '';
-                document.getElementById('adm-new-cat-id').value = '';
-                syncUI();
-                alert("✅ تم إضافة القسم بنجاح");
-            }
+                document.getElementById('stat-revenue').innerText = database.stats.totalRevenue.toFixed(0) + " ج";
 
-            function admDeleteCategory(index) {
-                const cat = database.categories[index];
-                if (!cat) return;
-                if (confirm(`هل أنت متأكد من حذف قسم "${cat.name}" وكل المنتجات بداخله؟`)) {
-                    delete database[cat.id]; // Remove products
-                    database.categories.splice(index, 1);
-                    // Reset current cat if deleted
-                    if (currentCat === cat.id) currentCat = database.categories[0].id;
-                    if (admCurrentCat === cat.id) admCurrentCat = database.categories[0].id;
-
-                    saveAdminChanges();
-                    document.getElementById('stat-revenue').innerText = database.stats.totalRevenue.toFixed(0) + " ج";
-
-                    // Top 5 Products by volume (simulated as we don't have order details history, but we can show products with isBestSeller for now)
-                    let best = [];
-                    for (let cat in database) {
-                        if (Array.isArray(database[cat])) {
-                            database[cat].forEach(p => { if (p.isBestSeller) best.push(p.name); });
-                        }
-                    }
-                    const topList = best.slice(0, 5).join(', ') || 'لا يوجد حالياً';
-                    const revenueCard = document.querySelector('.admin-stats-bar');
-                    if (revenueCard && !document.getElementById('top-products-stat')) {
-                        const topDiv = document.createElement('div');
-                        topDiv.id = 'top-products-stat';
-                        topDiv.className = 'stat-card';
-                        topDiv.style.gridColumn = '1 / -1';
-                        topDiv.style.marginTop = '10px';
-                        topDiv.innerHTML = `<p style="font-size:0.8rem; color:#666;">الأكثر تميزاً 🔥</p><div class="stat-val" style="font-size:1.1rem; color:var(--gold);">${topList}</div>`;
-                        revenueCard.appendChild(topDiv);
-                    } else if (document.getElementById('top-products-stat')) {
-                        document.getElementById('top-products-stat').querySelector('.stat-val').innerText = topList;
+                // Top 5 Products by volume (simulated as we don't have order details history, but we can show products with isBestSeller for now)
+                let best = [];
+                for (let cat in database) {
+                    if (Array.isArray(database[cat])) {
+                        database[cat].forEach(p => { if (p.isBestSeller) best.push(p.name); });
                     }
                 }
+                const topList = best.slice(0, 5).join(', ') || 'لا يوجد حالياً';
+                const revenueCard = document.querySelector('.admin-stats-bar');
+                if (revenueCard && !document.getElementById('top-products-stat')) {
+                    const topDiv = document.createElement('div');
+                    topDiv.id = 'top-products-stat';
+                    topDiv.className = 'stat-card';
+                    topDiv.style.gridColumn = '1 / -1';
+                    topDiv.style.marginTop = '10px';
+                    topDiv.innerHTML = `< p style = "font-size:0.8rem; color:#666;" > الأكثر تميزاً 🔥</p > <div class="stat-val" style="font-size:1.1rem; color:var(--gold);">${topList}</div>`;
+                    revenueCard.appendChild(topDiv);
+                } else if (document.getElementById('top-products-stat')) {
+                    document.getElementById('top-products-stat').querySelector('.stat-val').innerText = topList;
+                }
             }
+        }
 
-            function toggleRamadanMode() {
-                isRamadanMode = !isRamadanMode;
-                // Save to database for cloud sync
-                if (!database.settings) database.settings = {};
-                database.settings.isRamadanMode = isRamadanMode;
-                saveAdminChanges();
-                document.getElementById('ramadan-toggle-btn').innerText = isRamadanMode ? "إبطال" : "تفعيل";
-                document.body.classList.toggle('ramadan-mode', isRamadanMode);
-                syncUI();
-            }
+        function toggleRamadanMode() {
+            isRamadanMode = !isRamadanMode;
+            // Save to database for cloud sync
+            if (!database.settings) database.settings = {};
+            database.settings.isRamadanMode = isRamadanMode;
+            saveAdminChanges();
+            document.getElementById('ramadan-toggle-btn').innerText = isRamadanMode ? "إبطال" : "تفعيل";
+            document.body.classList.toggle('ramadan-mode', isRamadanMode);
+            syncUI();
+        }
 
-            function admAddGallery() {
-                const url = document.getElementById('adm-gallery-url').value;
-                if (!url) return;
-                database.gallery.push(url);
-                document.getElementById('adm-gallery-url').value = '';
-                saveAdminChanges();
-                renderAdmGallery();
-                syncUI();
-            }
+        function admAddGallery() {
+            const url = document.getElementById('adm-gallery-url').value;
+            if (!url) return;
+            database.gallery.push(url);
+            document.getElementById('adm-gallery-url').value = '';
+            saveAdminChanges();
+            renderAdmGallery();
+            syncUI();
+        }
 
-            function admDeleteGallery(i) {
-                database.gallery.splice(i, 1);
-                saveAdminChanges();
-                renderAdmGallery();
-                syncUI();
-            }
+        function admDeleteGallery(i) {
+            database.gallery.splice(i, 1);
+            saveAdminChanges();
+            renderAdmGallery();
+            syncUI();
+        }
 
-            function renderAdmGallery() {
-                const list = document.getElementById('adm-gallery-list');
-                if (list) {
-                    list.innerHTML = (database.gallery || []).map((url, i) => `
-            <div style="position:relative; flex-shrink:0;">
+        function renderAdmGallery() {
+            const list = document.getElementById('adm-gallery-list');
+            if (list) {
+                list.innerHTML = (database.gallery || []).map((url, i) => `
+            < div style = "position:relative; flex-shrink:0;" >
                 <img src="${url}" style="width:50px; height:50px; object-fit:cover; border-radius:5px;">
                     <button onclick="admDeleteGallery(${i})" style="position:absolute; top:0; right:0; background:red; color:white; border:none; border-radius:50%; width:18px; height:18px; cursor:pointer; font-size:10px;">×</button>
                 </div>
         `).join('');
-                }
             }
+        }
 
-            function renderGallery() {
-                const cont = document.getElementById('customer-gallery');
-                if (cont) {
-                    cont.innerHTML = (database.gallery || []).map(url => `
-            <div class="gallery-item animate__animated animate__zoomIn">
+        function renderGallery() {
+            const cont = document.getElementById('customer-gallery');
+            if (cont) {
+                cont.innerHTML = (database.gallery || []).map(url => `
+            < div class="gallery-item animate__animated animate__zoomIn" >
                 <img src="${url}" loading="lazy">
                 </div>
         `).join('');
+            }
+        }
+
+        function admToggleBestSeller(cat, index) {
+            database[cat][index].isBestSeller = !database[cat][index].isBestSeller;
+            saveAdminChanges();
+            renderAdmTable();
+            syncUI();
+        }
+
+        function admToggleVIP(cat, index) {
+            database[cat][index].isVIP = !database[cat][index].isVIP;
+            saveAdminChanges();
+            renderAdmTable();
+            syncUI();
+        }
+
+        function renderBestSellers() {
+            let all = [];
+            for (let cat in database) {
+                if (Array.isArray(database[cat])) {
+                    database[cat].forEach(p => { if (p.isBestSeller) all.push(p); });
                 }
             }
-
-            function admToggleBestSeller(cat, index) {
-                database[cat][index].isBestSeller = !database[cat][index].isBestSeller;
-                saveAdminChanges();
-                renderAdmTable();
-                syncUI();
-            }
-
-            function admToggleVIP(cat, index) {
-                database[cat][index].isVIP = !database[cat][index].isVIP;
-                saveAdminChanges();
-                renderAdmTable();
-                syncUI();
-            }
-
-            function renderBestSellers() {
-                let all = [];
-                for (let cat in database) {
-                    if (Array.isArray(database[cat])) {
-                        database[cat].forEach(p => { if (p.isBestSeller) all.push(p); });
+            const sec = document.getElementById('best-sellers-section');
+            if (all.length > 0) {
+                sec.classList.remove('hidden');
+                const uploadedImages = database.uploadedImages || {};
+                document.getElementById('best-sellers-grid').innerHTML = all.map(p => {
+                    // Check if image exists in uploaded images or use placeholder
+                    let imgSrc = p.img || 'https://via.placeholder.com/80';
+                    if (p.img && uploadedImages[p.img]) {
+                        imgSrc = uploadedImages[p.img];
                     }
-                }
-                const sec = document.getElementById('best-sellers-section');
-                if (all.length > 0) {
-                    sec.classList.remove('hidden');
-                    const uploadedImages = database.uploadedImages || {};
-                    document.getElementById('best-sellers-grid').innerHTML = all.map(p => {
-                        // Check if image exists in uploaded images or use placeholder
-                        let imgSrc = p.img || 'https://via.placeholder.com/80';
-                        if (p.img && uploadedImages[p.img]) {
-                            imgSrc = uploadedImages[p.img];
-                        }
-                        return `
-            <div class="best-seller-item" onclick="showMenu(); document.querySelector('.search-bar').value='${p.name}'; searchProducts('${p.name}')">
+                    return `
+            < div class="best-seller-item" onclick = "showMenu(); document.querySelector('.search-bar').value='${p.name}'; searchProducts('${p.name}')" >
                 <img src="${imgSrc}">
                     <p style="font-size:0.8rem; margin-top:5px; font-weight:bold;">${p.name}</p>
                 </div>
-                `;
-                    }).join('');
-                } else {
-                    sec.classList.add('hidden');
-                }
+        `;
+                }).join('');
+            } else {
+                sec.classList.add('hidden');
             }
+        }
 
-            function admToggleStock(cat, index) {
-                database[cat][index].inStock = !(database[cat][index].inStock !== false);
-                saveAdminChanges();
-                renderAdmTable();
-                syncUI();
-            }
+        function admToggleStock(cat, index) {
+            database[cat][index].inStock = !(database[cat][index].inStock !== false);
+            saveAdminChanges();
+            renderAdmTable();
+            syncUI();
+        }
 
-            function admDeleteProduct(cat, index) {
-                if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
-                database[cat].splice(index, 1);
-                saveAdminChanges();
-                renderAdmTable();
-                syncUI();
-            }
+        function admDeleteProduct(cat, index) {
+            if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
+            database[cat].splice(index, 1);
+            saveAdminChanges();
+            renderAdmTable();
+            syncUI();
+        }
 
-            // --- Order History & Receipts ---
-            function renderAdmOrders() {
-                const list = document.getElementById('adm-orders-list');
-                if (!list) return;
-                const orders = (database.orders || []).slice().reverse().slice(0, 50); // Last 50
+        // --- Order History & Receipts ---
+        function renderAdmOrders() {
+            const list = document.getElementById('adm-orders-list');
+            if (!list) return;
+            const orders = (database.orders || []).slice().reverse().slice(0, 50); // Last 50
 
-                list.innerHTML = orders.map(o => `
-                <div class="order-history-item" style="background:${o.status === 'completed' ? '#e8f5e9' : '#fff3e0'}; padding:10px; border-radius:5px; margin-bottom:5px; border:1px solid #ddd;">
+            list.innerHTML = orders.map(o => `
+            < div class="order-history-item" style = "background:${o.status === 'completed' ? '#e8f5e9' : '#fff3e0'}; padding:10px; border-radius:5px; margin-bottom:5px; border:1px solid #ddd;" >
                     <div style="display:flex; justify-content:space-between;">
                         <b>#${o.id} - ${o.date}</b>
                         <span>${o.total} ج</span>
@@ -3484,189 +3485,189 @@
                     <div style="margin-top:5px; display:flex; gap:5px;">
                         <button class="admin-btn" style="width:auto; padding:2px 8px; font-size:0.8rem;" onclick="admPrintReceipt('${o.id}')">🖨️ طباعة</button>
                     </div>
-                </div>
+                </div >
             `).join('');
+        }
+
+        function admPrintReceipt(orderId) {
+            const order = database.orders.find(o => o.id == orderId);
+            if (!order) return;
+
+            const receipt = document.getElementById('receipt-template');
+            document.getElementById('rec-date').innerText = order.date;
+            document.getElementById('rec-id').innerText = order.id;
+
+            // Items
+            // Assuming items string "falafel (2), hummus (1)" -> parse or save structured
+            // For now just show string
+            document.getElementById('rec-items').innerHTML = `< div style = "border-bottom:1px dashed #000; padding:5px 0;" > ${order.items.replace(/,/g, '<br>')}</div > `;
+
+            document.getElementById('rec-total').innerText = order.total + " EGP";
+
+            const win = window.open('', '', 'width=300,height=600');
+            win.document.write('<html><head><title>Receipt</title><style>body{font-family:monospace; direction:rtl; text-align:center;}</style></head><body>');
+            win.document.write(receipt.innerHTML);
+            win.document.write('</body></html>');
+            win.document.close();
+            win.focus();
+            win.print();
+            win.close();
+        }
+
+        // --- Mix Editor ---
+        function renderAdmMixEditor() {
+            const container = document.getElementById('adm-mix-editor');
+            if (!container) return;
+
+            // Find Mix Products
+            let mixes = [];
+            for (let c in database) {
+                if (Array.isArray(database[c])) {
+                    database[c].forEach((p, i) => {
+                        if (p.isMix) mixes.push({ cat: c, idx: i, ...p });
+                    });
+                }
             }
 
-            function admPrintReceipt(orderId) {
-                const order = database.orders.find(o => o.id == orderId);
-                if (!order) return;
-
-                const receipt = document.getElementById('receipt-template');
-                document.getElementById('rec-date').innerText = order.date;
-                document.getElementById('rec-id').innerText = order.id;
-
-                // Items
-                // Assuming items string "falafel (2), hummus (1)" -> parse or save structured
-                // For now just show string
-                document.getElementById('rec-items').innerHTML = `<div style="border-bottom:1px dashed #000; padding:5px 0;">${order.items.replace(/,/g, '<br>')}</div>`;
-
-                document.getElementById('rec-total').innerText = order.total + " EGP";
-
-                const win = window.open('', '', 'width=300,height=600');
-                win.document.write('<html><head><title>Receipt</title><style>body{font-family:monospace; direction:rtl; text-align:center;}</style></head><body>');
-                win.document.write(receipt.innerHTML);
-                win.document.write('</body></html>');
-                win.document.close();
-                win.focus();
-                win.print();
-                win.close();
+            if (mixes.length === 0) {
+                container.innerHTML = "<p>لا توجد منتجات 'مكس' حالياً.</p>";
+                return;
             }
 
-            // --- Mix Editor ---
-            function renderAdmMixEditor() {
-                const container = document.getElementById('adm-mix-editor');
-                if (!container) return;
-
-                // Find Mix Products
-                let mixes = [];
-                for (let c in database) {
-                    if (Array.isArray(database[c])) {
-                        database[c].forEach((p, i) => {
-                            if (p.isMix) mixes.push({ cat: c, idx: i, ...p });
-                        });
-                    }
-                }
-
-                if (mixes.length === 0) {
-                    container.innerHTML = "<p>لا توجد منتجات 'مكس' حالياً.</p>";
-                    return;
-                }
-
-                container.innerHTML = mixes.map(m => `
-                <div style="border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:10px;">
+            container.innerHTML = mixes.map(m => `
+            < div style = "border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:10px;" >
                     <b>${m.title}</b>
                     <textarea id="mix-content-${m.cat}-${m.idx}" style="width:100%; height:80px; margin-top:5px; border:1px solid #ddd;" placeholder="مكونات المكس (كل سطر مكون)">${(m.contents || []).join('\n')}</textarea>
                     <button class="admin-btn" style="width:auto; margin-top:5px;" onclick="admSaveMixContents('${m.cat}', ${m.idx}, document.getElementById('mix-content-${m.cat}-${m.idx}').value)">حفظ المحتويات</button>
-                </div>
+                </div >
             `).join('');
+        }
+
+        function admSaveMixContents(cat, idx, val) {
+            const contents = val ? val.split('\n').filter(x => x.trim()).map(x => x.trim()) : null;
+            database[cat][idx].contents = contents;
+            saveAdminChanges();
+            alert("✅ تم حفظ محتويات المكس");
+            syncUI();
+        }
+
+        function saveAdminChanges() {
+            localStorage.setItem('oudelle_custom_database', JSON.stringify(database));
+
+            // Real-time sync for all connected clients
+            if (isCloudActive && db) {
+                db.collection('app').doc('data').set(database).then(() => {
+                    console.log("🔥 Changes synced to cloud");
+                }).catch((error) => {
+                    console.error("❌ Cloud sync error:", error);
+                });
+            }
+        }
+
+        // --- Image Upload Functions ---
+        function handleHomeBgUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                compressImage(file, 1024, 0.8).then(dataUrl => {
+                    // Save to database for sync
+                    if (!database.settings) database.settings = {};
+                    database.settings.homeBackground = dataUrl;
+                    saveAdminChanges();
+                    // Apply immediately - replace background entirely
+                    const sliderBg = document.getElementById('slider-bg');
+                    sliderBg.style.background = `url(${dataUrl}) center center / cover no - repeat`;
+                    // Show preview
+                    document.getElementById('home-bg-preview').innerHTML =
+                        `< img src = "${dataUrl}" style = "max-width:200px; max-height:150px; border-radius:10px; border:2px solid var(--gold);" >
+            <p style="margin-top:5px; color:green;">✅ تم تحديث صورة الخلفية ومزامنتها</p>`;
+                }).catch(err => {
+                    console.error("Compression error:", err);
+                    alert("حدث خطأ أثناء معالجة الصورة. يرجى المحاولة مرة أخرى.");
+                });
+            }
+        }
+
+        function handleProductImgUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                compressImage(file, 600, 0.7).then(dataUrl => {
+                    // Generate unique filename
+                    const fileName = 'product_' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+                    // Save to database for sync
+                    if (!database.uploadedImages) database.uploadedImages = {};
+                    database.uploadedImages[fileName] = dataUrl;
+                    saveAdminChanges();
+                    // Auto-fill the image input
+                    document.getElementById('adm-img').value = fileName;
+                    alert('✅ تم رفع الصورة ومزامنتها بنجاح!');
+                }).catch(err => {
+                    console.error("Compression error:", err);
+                    alert("حدث خطأ أثناء معالجة الصورة. يرجى المحاولة مرة أخرى.");
+                });
+            }
+        }
+
+        // Load saved home background on page load
+        window.addEventListener('load', function () {
+            // Load from database first
+            if (database.settings && database.settings.homeBackground) {
+                const sliderBg = document.getElementById('slider-bg');
+                sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no - repeat`;
+            }
+            // Fallback to localStorage
+            const savedBg = localStorage.getItem('oudelle_home_bg');
+            if (savedBg) {
+                const sliderBg = document.getElementById('slider-bg');
+                sliderBg.style.background = `url(${savedBg}) center center / cover no - repeat`;
+            }
+        });
+
+        // Sync images from database to localStorage on load
+        function syncImagesFromDatabase() {
+            // Sync gallery images
+            if (database.gallery && database.gallery.length > 0) {
+                localStorage.setItem('oudelle_gallery_images', JSON.stringify(database.gallery));
+                console.log('🖼️ Gallery images synced to localStorage');
             }
 
-            function admSaveMixContents(cat, idx, val) {
-                const contents = val ? val.split('\n').filter(x => x.trim()).map(x => x.trim()) : null;
-                database[cat][idx].contents = contents;
-                saveAdminChanges();
-                alert("✅ تم حفظ محتويات المكس");
+            // Sync uploaded images
+            if (database.uploadedImages) {
+                localStorage.setItem('oudelle_uploaded_images', JSON.stringify(database.uploadedImages));
+                console.log('📸 Product images synced to localStorage');
+            }
+        }
+
+        // Call sync on load
+        document.addEventListener('DOMContentLoaded', function () {
+            syncImagesFromDatabase();
+            setTimeout(function () {
+                console.log('🚀 Initializing app...');
+                ensureDefaults();
+                renderCategories();
+                render(currentCat);
+                renderBestSellers();
+                renderGallery();
                 syncUI();
-            }
 
-            function saveAdminChanges() {
-                localStorage.setItem('oudelle_custom_database', JSON.stringify(database));
-
-                // Real-time sync for all connected clients
-                if (isCloudActive && db) {
-                    db.collection('app').doc('data').set(database).then(() => {
-                        console.log("🔥 Changes synced to cloud");
-                    }).catch((error) => {
-                        console.error("❌ Cloud sync error:", error);
-                    });
+                // Apply Ramadan mode from database
+                if (database.settings && database.settings.isRamadanMode !== undefined) {
+                    isRamadanMode = database.settings.isRamadanMode;
+                    localStorage.setItem('oudelle_ramadan', isRamadanMode);
+                    document.body.classList.toggle('ramadan-mode', isRamadanMode);
+                    const btn = document.getElementById('ramadan-toggle-btn');
+                    if (btn) btn.innerText = isRamadanMode ? "إبطال" : "تفعيل";
                 }
-            }
 
-            // --- Image Upload Functions ---
-            function handleHomeBgUpload(event) {
-                const file = event.target.files[0];
-                if (file && file.type.startsWith('image/')) {
-                    compressImage(file, 1024, 0.8).then(dataUrl => {
-                        // Save to database for sync
-                        if (!database.settings) database.settings = {};
-                        database.settings.homeBackground = dataUrl;
-                        saveAdminChanges();
-                        // Apply immediately - replace background entirely
-                        const sliderBg = document.getElementById('slider-bg');
-                        sliderBg.style.background = `url(${dataUrl}) center center / cover no-repeat`;
-                        // Show preview
-                        document.getElementById('home-bg-preview').innerHTML =
-                            `<img src="${dataUrl}" style="max-width:200px; max-height:150px; border-radius:10px; border:2px solid var(--gold);">
-                         <p style="margin-top:5px; color:green;">✅ تم تحديث صورة الخلفية ومزامنتها</p>`;
-                    }).catch(err => {
-                        console.error("Compression error:", err);
-                        alert("حدث خطأ أثناء معالجة الصورة. يرجى المحاولة مرة أخرى.");
-                    });
-                }
-            }
-
-            function handleProductImgUpload(event) {
-                const file = event.target.files[0];
-                if (file && file.type.startsWith('image/')) {
-                    compressImage(file, 600, 0.7).then(dataUrl => {
-                        // Generate unique filename
-                        const fileName = 'product_' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-                        // Save to database for sync
-                        if (!database.uploadedImages) database.uploadedImages = {};
-                        database.uploadedImages[fileName] = dataUrl;
-                        saveAdminChanges();
-                        // Auto-fill the image input
-                        document.getElementById('adm-img').value = fileName;
-                        alert('✅ تم رفع الصورة ومزامنتها بنجاح!');
-                    }).catch(err => {
-                        console.error("Compression error:", err);
-                        alert("حدث خطأ أثناء معالجة الصورة. يرجى المحاولة مرة أخرى.");
-                    });
-                }
-            }
-
-            // Load saved home background on page load
-            window.addEventListener('load', function () {
-                // Load from database first
+                // Apply home background from database
                 if (database.settings && database.settings.homeBackground) {
                     const sliderBg = document.getElementById('slider-bg');
-                    sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no-repeat`;
-                }
-                // Fallback to localStorage
-                const savedBg = localStorage.getItem('oudelle_home_bg');
-                if (savedBg) {
-                    const sliderBg = document.getElementById('slider-bg');
-                    sliderBg.style.background = `url(${savedBg}) center center / cover no-repeat`;
-                }
-            });
-
-            // Sync images from database to localStorage on load
-            function syncImagesFromDatabase() {
-                // Sync gallery images
-                if (database.gallery && database.gallery.length > 0) {
-                    localStorage.setItem('oudelle_gallery_images', JSON.stringify(database.gallery));
-                    console.log('🖼️ Gallery images synced to localStorage');
+                    sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no - repeat`;
                 }
 
-                // Sync uploaded images
-                if (database.uploadedImages) {
-                    localStorage.setItem('oudelle_uploaded_images', JSON.stringify(database.uploadedImages));
-                    console.log('📸 Product images synced to localStorage');
-                }
-            }
-
-            // Call sync on load
-            document.addEventListener('DOMContentLoaded', function () {
-                syncImagesFromDatabase();
-                setTimeout(function () {
-                    console.log('🚀 Initializing app...');
-                    ensureDefaults();
-                    renderCategories();
-                    render(currentCat);
-                    renderBestSellers();
-                    renderGallery();
-                    syncUI();
-
-                    // Apply Ramadan mode from database
-                    if (database.settings && database.settings.isRamadanMode !== undefined) {
-                        isRamadanMode = database.settings.isRamadanMode;
-                        localStorage.setItem('oudelle_ramadan', isRamadanMode);
-                        document.body.classList.toggle('ramadan-mode', isRamadanMode);
-                        const btn = document.getElementById('ramadan-toggle-btn');
-                        if (btn) btn.innerText = isRamadanMode ? "إبطال" : "تفعيل";
-                    }
-
-                    // Apply home background from database
-                    if (database.settings && database.settings.homeBackground) {
-                        const sliderBg = document.getElementById('slider-bg');
-                        sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no-repeat`;
-                    }
-
-                    console.log('✅ App initialized!');
-                    console.log('? App initialized!');
-                }, 200);
-            });
+                console.log('✅ App initialized!');
+                console.log('? App initialized!');
+            }, 200);
+        });
 
     </script>
     <button onclick="openAdmin()"
