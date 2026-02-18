@@ -1809,72 +1809,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
     <script>
-        // --- FIREBASE CONFIGURATION ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyB7pFoM2AeEJnWo9SVQ594P5pt9tuXRGg4",
-            authDomain: "oudelle.firebaseapp.com",
-            databaseURL: "https://oudelle-default-rtdb.firebaseio.com",
-            projectId: "oudelle",
-            storageBucket: "oudelle.firebasestorage.app",
-            messagingSenderId: "44390123746",
-            appId: "1:44390123746:web:4932a37011924d5bce36bb",
-            measurementId: "G-R3LS4MJNSY"
-        };
-
-        let db, auth;
-        let isCloudActive = false;
-
-        try {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-            auth = firebase.auth();
-            isCloudActive = true;
-            console.log("🔥 Firebase initialized successfully!");
-            console.log("📱 Project ID:", firebaseConfig.projectId);
-
-            // Test Firestore connection
-            db.collection('app').doc('data').get().then((doc) => {
-                console.log("✅ Firestore connection test passed!");
-                if (doc.exists) {
-                    console.log("📦 Data found in cloud");
-                } else {
-                    console.log("⚠️ No data in cloud yet - will create on first save");
-                }
-            }).catch((err) => {
-                console.error("❌ Firestore connection failed:", err.message);
-                console.log("💡 Fix: Go to Firebase Console → Firestore Database → Create database → Start in test mode");
-            });
-        } catch (e) {
-            console.error("Firebase Init Error:", e);
-            isCloudActive = false;
-        }
-
-        // Force Cloud Mode - Always use Firebase
-        if (!isCloudActive) {
-            console.log("⚠️ Firebase not initialized - Retrying...");
-            // Retry Firebase initialization
-            setTimeout(() => {
-                try {
-                    firebase.initializeApp(firebaseConfig);
-                    db = firebase.firestore();
-                    auth = firebase.auth();
-                    isCloudActive = true;
-                    console.log("🔥 Firebase initialized successfully on retry!");
-                    loadDatabase();
-                    ensureDefaults();
-                } catch (e) {
-                    console.error("❌ Firebase retry failed:", e);
-                    console.log("⚠️ Running in Local Mode (no Firebase)");
-                    isCloudActive = false;
-                    loadDatabase();
-                    ensureDefaults();
-                }
-            }, 1000);
-        } else {
-            console.log("✅ Cloud Mode Active - All changes sync to Firebase");
-            loadDatabase();
-            ensureDefaults();
-        }
+        // --- GLOBAL STATE ---
         let WHATSAPP_NUM = "201023728183";
         let TICKER_TEXT = "عرض خاص: خصم 10% على جميع الحلويات الشرقية عند الطلب عبر الموقع! | التوصيل مجاني للطلبات فوق 500 ج.م | جرب الكنافة النابلسية الآن!";
         let cart = [];
@@ -1910,7 +1845,7 @@
                 "kanaf_nablusi_jbenah.jpg": "https://via.placeholder.com/300x200?text=كنافه+نابلسيه+جبنه"
             },
             oriental: [
-                { name: "بسبوسه ساده", price: 175, type: 'kg', img: "bosset_sadeh.jpg" },
+                { name: "بسبوسه ساده", price: 175, type: 'kg', img: "c:\Users\NewTech\.gemini\antigravity\scratch\oudelle-vercel-complete\بسبوسه ساده.jpg" },
                 { name: "بسبوسه مكسرات", price: 240, type: 'kg', img: "bosset_meksharat.jpg" },
                 { name: "بسبوسه قشطه", price: 220, type: 'kg', img: "bosset_qatah.jpg" },
                 { name: "بسبوسه نوتيلا", price: 215, type: 'kg', img: "bosset_nawela.jpg" },
@@ -1996,6 +1931,95 @@
                 { name: "قهوه ساده", price: 20, type: 'piece', img: "" },
             ],
         };
+
+        let appliedDiscount = 0;
+
+        function toggleTheme() {
+            const body = document.body;
+            body.classList.toggle('dark-mode');
+            const isDark = body.classList.contains('dark-mode');
+            localStorage.setItem('oudelle_dark_mode', isDark);
+            const btn = document.querySelector('.theme-toggle');
+            if (btn) btn.innerText = isDark ? "☀️" : "🌙";
+        }
+
+        // Apply theme on load
+        if (localStorage.getItem('oudelle_dark_mode') === 'true') {
+            document.body.classList.add('dark-mode');
+            setTimeout(() => {
+                const btn = document.querySelector('.theme-toggle');
+                if (btn) btn.innerText = "☀️";
+            }, 0);
+        }
+
+        // --- FIREBASE CONFIGURATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyB7pFoM2AeEJnWo9SVQ594P5pt9tuXRGg4",
+            authDomain: "oudelle.firebaseapp.com",
+            databaseURL: "https://oudelle-default-rtdb.firebaseio.com",
+            projectId: "oudelle",
+            storageBucket: "oudelle.firebasestorage.app",
+            messagingSenderId: "44390123746",
+            appId: "1:44390123746:web:4932a37011924d5bce36bb",
+            measurementId: "G-R3LS4MJNSY"
+        };
+
+        // Initial Firebase and Local Load
+        let db, auth;
+        let isCloudActive = false;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            auth = firebase.auth();
+            isCloudActive = true;
+            console.log("🔥 Firebase initialized successfully!");
+            console.log("📱 Project ID:", firebaseConfig.projectId);
+
+            // Test Firestore connection
+            db.collection('app').doc('data').get().then((doc) => {
+                console.log("✅ Firestore connection test passed!");
+                if (doc.exists) {
+                    console.log("📦 Data found in cloud");
+                } else {
+                    console.log("⚠️ No data in cloud yet - will create on first save");
+                }
+            }).catch((err) => {
+                console.error("❌ Firestore connection failed:", err.message);
+                console.log("💡 Fix: Go to Firebase Console → Firestore Database → Create database → Start in test mode");
+            });
+        } catch (e) {
+            console.error("Firebase Init Error:", e);
+            isCloudActive = false;
+        }
+
+        // Force Cloud Mode - Always use Firebase
+        if (!isCloudActive) {
+            console.log("⚠️ Firebase not initialized - Retrying...");
+            // Retry Firebase initialization
+            setTimeout(() => {
+                try {
+                    firebase.initializeApp(firebaseConfig);
+                    db = firebase.firestore();
+                    auth = firebase.auth();
+                    isCloudActive = true;
+                    console.log("🔥 Firebase initialized successfully on retry!");
+                    loadDatabase();
+                    ensureDefaults();
+                } catch (e) {
+                    console.error("❌ Firebase retry failed:", e);
+                    console.log("⚠️ Running in Local Mode (no Firebase)");
+                    isCloudActive = false;
+                    loadDatabase();
+                    ensureDefaults();
+                }
+            }, 1000);
+        } else {
+            console.log("✅ Cloud Mode Active - All changes sync to Firebase");
+            loadDatabase();
+            ensureDefaults();
+        }
+
 
         function loadDatabase() {
             const storedDB = JSON.parse(localStorage.getItem('oudelle_custom_database'));
@@ -2580,7 +2604,7 @@
         }
 
         // --- Advanced Engagement Features Logic ---
-        let appliedDiscount = 0;
+
         const validVouchers = { 'OUDELLE10': 0.10, 'WELCOME': 0.05, 'OFF50': 0.50, 'OUDELLE2026': 0.10 };
 
         function surpriseMe() {
@@ -3113,7 +3137,7 @@
                         <button class="admin-btn" style="width:auto; padding:2px 8px; background:#ef4444;" 
                                 onclick="admDeleteProduct('${admCurrentCat}', ${index})">حذف</button>
                     </td>
-                </tr >
+                </tr>
                 `;
             }).join('');
         }
@@ -3158,10 +3182,10 @@
             const list = document.getElementById('adm-vouchers-list');
             const v = database.vouchers || {};
             list.innerHTML = Object.entries(v).map(([code, perc]) => `
-            < div style = "background:#e0f2fe; padding:5px 10px; border-radius:15px; display:flex; gap:8px; align-items:center; font-size:0.85rem;" >
+            <div style="background:#e0f2fe; padding:5px 10px; border-radius:15px; display:flex; gap:8px; align-items:center; font-size:0.85rem;">
                 <b>${code}</b> (${perc * 100}%)
         <button onclick="admRemoveVoucher('${code}')" style="border:none; background:none; color:red; cursor:pointer;">✖</button>
-                </div >
+            </div>
             `).join('');
         }
 
@@ -3186,16 +3210,16 @@
             const list = document.getElementById('adm-areas-list');
             const areas = database.delivery || [];
             list.innerHTML = areas.map((a, i) => `
-            < div style = "background:#fef3c7; padding:5px 10px; border-radius:15px; display:flex; gap:8px; align-items:center; font-size:0.85rem;" >
+            <div style="background:#fef3c7; padding:5px 10px; border-radius:15px; display:flex; gap:8px; align-items:center; font-size:0.85rem;">
                 <b>${a.name}</b> (${a.price}ج)
         <button onclick="admRemoveArea(${i})" style="border:none; background:none; color:red; cursor:pointer;">✖</button>
-                </div >
+            </div>
             `).join('');
 
             // Update the actual select in cart
             const select = document.getElementById('area-select');
             if (select) {
-                select.innerHTML = areas.map(a => `< option value = "${a.price}" > ${a.name}</option > `).join('');
+                select.innerHTML = areas.map(a => `<option value="${a.price}">${a.name}</option>`).join('');
             }
         }
 
@@ -3326,7 +3350,7 @@
             const container = document.getElementById('category-tabs-container');
             if (!container) return;
             container.innerHTML = (database.categories || []).map(c => `
-            < button class="tab ${c.id === currentCat ? 'active' : ''}" onclick = "render('${c.id}', this)" > ${c.name}</button >
+            <button class="tab ${c.id === currentCat ? 'active' : ''}" onclick="render('${c.id}', this)">${c.name}</button>
                 `).join('');
         }
 
@@ -3334,16 +3358,16 @@
             const list = document.getElementById('adm-cats-list');
             if (!list) return;
             list.innerHTML = (database.categories || []).map((c, i) => `
-                < div style = "background:#e0f2fe; padding:5px 10px; border-radius:15px; display:flex; gap:8px; align-items:center; font-size:0.85rem;" >
+                <div style="background:#e0f2fe; padding:5px 10px; border-radius:15px; display:flex; gap:8px; align-items:center; font-size:0.85rem;">
                     <b>${c.name}</b>
                     ${['oriental', 'nabulsia', 'dairy', 'jordanian', 'Westernsweets', 'offers', 'drinks'].includes(c.id) ? '' : `<button onclick="admDeleteCategory(${i})" style="border:none; background:none; color:red; cursor:pointer;">✖</button>`}
-                </div >
+                </div>
             `).join('');
 
             // Update Admin Select
             const sel = document.getElementById('adm-cat');
             if (sel) {
-                sel.innerHTML = (database.categories || []).map(c => `< option value = "${c.id}" ${c.id === admCurrentCat ? 'selected' : ''}> ${c.name}</option > `).join('');
+                sel.innerHTML = (database.categories || []).map(c => `<option value="${c.id}" ${c.id === admCurrentCat ? 'selected' : ''}>${c.name}</option>`).join('');
             }
         }
 
@@ -3390,7 +3414,7 @@
                     topDiv.className = 'stat-card';
                     topDiv.style.gridColumn = '1 / -1';
                     topDiv.style.marginTop = '10px';
-                    topDiv.innerHTML = `< p style = "font-size:0.8rem; color:#666;" > الأكثر تميزاً 🔥</p > <div class="stat-val" style="font-size:1.1rem; color:var(--gold);">${topList}</div>`;
+                    topDiv.innerHTML = `<p style="font-size:0.8rem; color:#666;">الأكثر مبيعاً</p><div class="stat-val" style="font-size:1.1rem; color:var(--gold);">${topList}</div>`;
                     revenueCard.appendChild(topDiv);
                 } else if (document.getElementById('top-products-stat')) {
                     document.getElementById('top-products-stat').querySelector('.stat-val').innerText = topList;
@@ -3430,7 +3454,7 @@
             const list = document.getElementById('adm-gallery-list');
             if (list) {
                 list.innerHTML = (database.gallery || []).map((url, i) => `
-            < div style = "position:relative; flex-shrink:0;" >
+            <div style="position:relative; flex-shrink:0;">
                 <img src="${url}" style="width:50px; height:50px; object-fit:cover; border-radius:5px;">
                     <button onclick="admDeleteGallery(${i})" style="position:absolute; top:0; right:0; background:red; color:white; border:none; border-radius:50%; width:18px; height:18px; cursor:pointer; font-size:10px;">×</button>
                 </div>
@@ -3442,7 +3466,7 @@
             const cont = document.getElementById('customer-gallery');
             if (cont) {
                 cont.innerHTML = (database.gallery || []).map(url => `
-            < div class="gallery-item animate__animated animate__zoomIn" >
+            <div class="gallery-item animate__animated animate__zoomIn">
                 <img src="${url}" loading="lazy">
                 </div>
         `).join('');
@@ -3481,7 +3505,7 @@
                         imgSrc = uploadedImages[p.img];
                     }
                     return `
-            < div class="best-seller-item" onclick = "showMenu(); document.querySelector('.search-bar').value='${p.name}'; searchProducts('${p.name}')" >
+            <div class="best-seller-item" onclick="showMenu(); document.querySelector('.search-bar').value='${p.name}'; searchProducts('${p.name}')">
                 <img src="${imgSrc}">
                     <p style="font-size:0.8rem; margin-top:5px; font-weight:bold;">${p.name}</p>
                 </div>
@@ -3514,7 +3538,7 @@
             const orders = (database.orders || []).slice().reverse().slice(0, 50); // Last 50
 
             list.innerHTML = orders.map(o => `
-            < div class="order-history-item" style = "background:${o.status === 'completed' ? '#e8f5e9' : '#fff3e0'}; padding:10px; border-radius:5px; margin-bottom:5px; border:1px solid #ddd;" >
+            <div class="order-history-item" style="background:${o.status === 'completed' ? '#e8f5e9' : '#fff3e0'}; padding:10px; border-radius:5px; margin-bottom:5px; border:1px solid #ddd;">
                     <div style="display:flex; justify-content:space-between;">
                         <b>#${o.id} - ${o.date}</b>
                         <span>${o.total} ج</span>
@@ -3523,7 +3547,7 @@
                     <div style="margin-top:5px; display:flex; gap:5px;">
                         <button class="admin-btn" style="width:auto; padding:2px 8px; font-size:0.8rem;" onclick="admPrintReceipt('${o.id}')">🖨️ طباعة</button>
                     </div>
-                </div >
+                </div>
             `).join('');
         }
 
@@ -3538,7 +3562,7 @@
             // Items
             // Assuming items string "falafel (2), hummus (1)" -> parse or save structured
             // For now just show string
-            document.getElementById('rec-items').innerHTML = `< div style = "border-bottom:1px dashed #000; padding:5px 0;" > ${order.items.replace(/,/g, '<br>')}</div > `;
+            document.getElementById('rec-items').innerHTML = `<div style="border-bottom:1px dashed #000; padding:5px 0;">${order.items.replace(/,/g, '<br>')}</div>`;
 
             document.getElementById('rec-total').innerText = order.total + " EGP";
 
@@ -3573,11 +3597,11 @@
             }
 
             container.innerHTML = mixes.map(m => `
-            < div style = "border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:10px;" >
+            <div style="border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:10px;">
                     <b>${m.title}</b>
                     <textarea id="mix-content-${m.cat}-${m.idx}" style="width:100%; height:80px; margin-top:5px; border:1px solid #ddd;" placeholder="مكونات المكس (كل سطر مكون)">${(m.contents || []).join('\n')}</textarea>
                     <button class="admin-btn" style="width:auto; margin-top:5px;" onclick="admSaveMixContents('${m.cat}', ${m.idx}, document.getElementById('mix-content-${m.cat}-${m.idx}').value)">حفظ المحتويات</button>
-                </div >
+                </div>
             `).join('');
         }
 
@@ -3589,18 +3613,7 @@
             syncUI();
         }
 
-        function saveAdminChanges() {
-            localStorage.setItem('oudelle_custom_database', JSON.stringify(database));
 
-            // Real-time sync for all connected clients
-            if (isCloudActive && db) {
-                db.collection('app').doc('data').set(database).then(() => {
-                    console.log("🔥 Changes synced to cloud");
-                }).catch((error) => {
-                    console.error("❌ Cloud sync error:", error);
-                });
-            }
-        }
 
         function handleUpdateImgUpload(event) {
             const file = event.target.files[0];
@@ -3703,10 +3716,10 @@
                     saveAdminChanges();
                     // Apply immediately - replace background entirely
                     const sliderBg = document.getElementById('slider-bg');
-                    sliderBg.style.background = `url(${dataUrl}) center center / cover no - repeat`;
+                    sliderBg.style.background = `url(${dataUrl}) center center / cover no-repeat`;
                     // Show preview
                     document.getElementById('home-bg-preview').innerHTML =
-                        `< img src = "${dataUrl}" style = "max-width:200px; max-height:150px; border-radius:10px; border:2px solid var(--gold);" >
+                        `<img src="${dataUrl}" style="max-width:200px; max-height:150px; border-radius:10px; border:2px solid var(--gold);">
             <p style="margin-top:5px; color:green;">✅ تم تحديث صورة الخلفية ومزامنتها</p>`;
                 }).catch(err => {
                     console.error("Compression error:", err);
@@ -3789,7 +3802,7 @@
                 // Apply home background from database
                 if (database.settings && database.settings.homeBackground) {
                     const sliderBg = document.getElementById('slider-bg');
-                    sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no - repeat`;
+                    sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no-repeat`;
                 }
 
                 console.log('✅ App initialized!');
@@ -3803,7 +3816,6 @@
         onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
         🎛️ لوحة التحكم
     </button>
-    </div>
     <!-- Thermal Receipt Template (Hidden) -->
     <div id="thermal-receipt">
         <center>
