@@ -350,6 +350,49 @@
             font-weight: bold;
         }
 
+        /* Carousel Styles */
+        .carousel-container {
+            position: relative;
+            width: 100%;
+            height: 180px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            border-radius: 15px;
+        }
+
+        .carousel-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            margin-bottom: 0;
+        }
+
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            z-index: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+        }
+
+        .carousel-btn.prev {
+            left: 5px;
+        }
+
+        .carousel-btn.next {
+            right: 5px;
+        }
+
         .section-title {
             text-align: center;
             margin: 40px 0 20px;
@@ -1689,14 +1732,8 @@
                     <textarea id="adm-type-custom" class="admin-input"
                         style="height:80px; resize:vertical; padding:8px;"
                         placeholder="أطعم المنتج (اكتب كل طعم في سطر منفصل)"></textarea>
-                    <div style="display:flex; gap:10px; margin-bottom:10px;">
-                        <input type="file" id="product-img-input" accept="image/*" style="flex:1;"
-                            onchange="handleProductImgUpload(event)">
-                        <button class="admin-btn" style="width:auto; padding:5px 15px;"
-                            onclick="document.getElementById('product-img-input').click()">اختر صورة المنتج</button>
-                    </div>
-                    <input type="text" id="adm-img" class="admin-input"
-                        placeholder="اسم ملف الصورة (يتم ملؤه تلقائياً)">
+                    <div id="adm-img-previews" style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px;"></div>
+                    <input type="text" id="adm-img" class="admin-input" placeholder="معرفات الصور (مفصول بفاصلة)">
                     <input type="hidden" id="adm-edit-mode-index" value="-1">
                     <button id="adm-action-btn" class="admin-btn" onclick="admAddProduct()">إضافة المنتج</button>
                     <button id="adm-cancel-edit-btn" class="admin-btn"
@@ -2635,6 +2672,25 @@
             }, 500);
         }
 
+        const productCurrentImg = {};
+
+        function slideGallery(cat, index, direction, event) {
+            if (event) event.stopPropagation();
+            const p = database[cat][index];
+            const imgs = p.images || [p.img];
+            const key = `${cat}-${index}`;
+
+            if (productCurrentImg[key] === undefined) productCurrentImg[key] = 0;
+            productCurrentImg[key] = (productCurrentImg[key] + direction + imgs.length) % imgs.length;
+
+            const activeImg = imgs[productCurrentImg[key]];
+            const uploadedImages = database.uploadedImages || {};
+            const imgURL = uploadedImages[activeImg] || activeImg;
+
+            const imgEl = document.getElementById(`img-${cat}-${index}`);
+            if (imgEl) imgEl.src = imgURL;
+        }
+
         function applyVoucher() {
             const code = document.getElementById('v-code').value.toUpperCase();
             const msg = document.getElementById('v-msg');
@@ -2654,8 +2710,14 @@
 
         function callWaiter() {
             if (!selectedTableNumber) return alert("يرجى اختيار رقم الطاولة أولاً");
-            const text = `🔔 *طلب مساعدة*\\n*طاولة رقم:* ${selectedTableNumber}\\nالعميل يطلب الجرسون.`;
+            const text = `🔔 *طلب مساعدة*\n*طاولة رقم:* ${selectedTableNumber}\nالعميل يطلب الجرسون.`;
             window.open(`https://wa.me/${WHATSAPP_NUM}?text=${encodeURIComponent(text)}`);
+        }
+
+        function selectTable(num, el) {
+            selectedTableNumber = num;
+            document.querySelectorAll('.table-card').forEach(c => c.classList.remove('selected'));
+            if (el) el.classList.add('selected');
         }
 
 
@@ -2684,14 +2746,18 @@
                 const hasDiscount = p.isDiscount || (p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price));
                 const discountHTML = hasDiscount ? `<div class="discount-status-badge">عرض خاص / خصم 🏷️</div>` : "";
 
-                // Check if image exists in uploaded images or use placeholder
-                let img = p.img || `https://via.placeholder.com/300x200?text=${p.name}`;
-                if (p.img && uploadedImages[p.img]) {
-                    img = uploadedImages[p.img];
-                }
+                // Check for multiple images
+                const imgs = p.images || [p.img || `https://via.placeholder.com/300x200?text=${p.name}`];
+                const activeImg = imgs[0];
+                let imgURL = uploadedImages[activeImg] || activeImg;
 
-                const vipHTML = isVIP ? `<div class="vip-badge">الشيف يرشحه 👑</div>` : "";
-
+                const carouselHTML = imgs.length > 1 ? `
+                    <div class="carousel-container" id="carousel-${cat}-${i}">
+                        <button class="carousel-btn prev" onclick="slideGallery('${cat}', ${i}, -1, event)">‹</button>
+                        <img src="${imgURL}" id="img-${cat}-${i}">
+                        <button class="carousel-btn next" onclick="slideGallery('${cat}', ${i}, 1, event)">›</button>
+                    </div>
+                ` : `<img src="${imgURL}">`;
 
                 if (p.isMix) {
                     const sourceItems = p.contents ? p.contents.map(name => {
@@ -2715,12 +2781,12 @@
                         const oldPriceHTML = oldDisplayPrice ? `<div class="old-price-display"><span class="price-strike-small">${oldDisplayPrice} ج</span></div>` : "";
                         let unit = 'ج/ربع كيلو';
                         let weightOptions = `<option value="0.25">250جم</option><option value="0.5">500جم</option><option value="0.75">750جم</option><option value="1" selected>1 كيلو</option>`;
-                        html += `<div class="card ${isSoldOut ? 'sold-out' : ''}" style="position:relative;">${vipHTML}<img src="${img}"><h3>${p.name}</h3>` +
+                        html += `<div class="card ${isSoldOut ? 'sold-out' : ''}" style="position:relative;">${vipHTML}${carouselHTML}<h3>${p.name}</h3>` +
                             (isSoldOut ? `<span class="out-of-stock-badge">غير متوفر حالياً</span>` : `${discountHTML}${oldPriceHTML}<span class="price-badge">${displayPrice} ${unit}</span>`) +
                             `${optionsHTML}<select id="w-${cat}-${i}" class="weight-select" ${isSoldOut ? 'disabled' : ''}>${weightOptions}</select><button class="add-btn" onclick="addKg('${cat}',${i})" ${isSoldOut ? 'disabled' : ''}>${isSoldOut ? 'غير متوفر' : 'إضافة'}</button></div>`;
                     } else {
                         const oldPriceHTML = p.oldPrice ? `<div class="old-price-display"><span class="price-strike-small">${p.oldPrice} ج</span></div>` : "";
-                        html += `<div class="card ${isSoldOut ? 'sold-out' : ''}" style="position:relative;">${vipHTML}<img src="${img}"><h3>${p.name}</h3>` +
+                        html += `<div class="card ${isSoldOut ? 'sold-out' : ''}" style="position:relative;">${vipHTML}${carouselHTML}<h3>${p.name}</h3>` +
                             (isSoldOut ? `<span class="out-of-stock-badge">غير متوفر حالياً</span>` : `${discountHTML}${oldPriceHTML}<span class="price-badge">${p.price} ج.م</span>`) +
                             `${optionsHTML}<input type="number" id="q-${cat}-${i}" class="weight-select" value="1" min="1" ${isSoldOut ? 'disabled' : ''}><button class="add-btn" onclick="addPiece('${cat}',${i})" ${isSoldOut ? 'disabled' : ''}>${isSoldOut ? 'غير متوفر' : 'إضافة'}</button></div>`;
                     }
@@ -3102,6 +3168,7 @@
         function renderAdmTable() {
             const tableBody = document.getElementById('adm-items-table');
             const items = database[admCurrentCat] || [];
+            const uploadedImages = database.uploadedImages || {};
 
             tableBody.innerHTML = items.map((p, index) => {
                 const priceField = p.isMix ? '---' : `<input type="number" value="${p.price}" style="width:70px; padding:3px; border:1px solid #ddd; border-radius:5px;" onchange="admUpdateCurrentPrice('${admCurrentCat}', ${index}, this.value)"> ج`;
@@ -3109,9 +3176,16 @@
                 const typeText = p.isMix ? 'مكس' : (p.type === 'kg' ? 'كيلو' : 'قطعة');
                 const optionsText = p.isMix ? '---' : (p.options && p.options.length ? `(متعدد)` : 'ساده');
 
+                const imgs = p.images || (p.img ? [p.img] : []);
+                const imgThumb = imgs.length > 0 ? (uploadedImages[imgs[0]] || imgs[0]) : 'https://via.placeholder.com/50';
+                const imgCount = imgs.length > 1 ? `<span style="display:block; font-size:10px; color:#666;">+${imgs.length - 1} صور</span>` : '';
+
                 return `
                     <tr>
-                        <td><img src="${p.img || 'https://via.placeholder.com/50'}" style="width:40px; height:40px; object-fit:cover; border-radius:5px;"></td>
+                        <td>
+                            <img src="${imgThumb}" style="width:40px; height:40px; object-fit:cover; border-radius:5px;">
+                            ${imgCount}
+                        </td>
                         <td>${p.isMix ? p.title : p.name}</td>
                         <td>${priceField}</td>
                         <td>${oldPriceField}</td>
@@ -3262,6 +3336,8 @@
 
             const options = optionsStr ? optionsStr.split('\n').map(s => s.trim()).filter(s => s) : null;
 
+            const images = img ? img.split(',').map(s => s.trim()).filter(s => s) : [];
+
             if (editIndex >= 0) {
                 // Update Existing
                 const p = database[cat][editIndex];
@@ -3270,11 +3346,12 @@
                 p.oldPrice = oldPrice;
                 p.type = type;
                 p.options = options;
-                p.img = img;
+                p.images = images;
+                p.img = images[0] || ""; // Backward compatibility
                 alert("✅ تم تعديل المنتج بنجاح");
             } else {
                 // Add New
-                const newP = { name, price, oldPrice, type, options, img: img || "", inStock: true, isDiscount: false, isVIP: false };
+                const newP = { name, price, oldPrice, type, options, images, img: images[0] || "", inStock: true, isDiscount: false, isVIP: false };
                 if (!database[cat]) database[cat] = [];
                 database[cat].unshift(newP);
                 alert("✅ تم إضافة المنتج بنجاح");
@@ -3297,7 +3374,9 @@
             document.getElementById('adm-old-price').value = p.oldPrice || '';
             document.getElementById('adm-type').value = p.type;
             document.getElementById('adm-type-custom').value = p.options ? p.options.join('\n') : '';
-            document.getElementById('adm-img').value = p.img || '';
+            const imgs = p.images || (p.img ? [p.img] : []);
+            document.getElementById('adm-img').value = imgs.join(',');
+            renderImgPreviews();
 
             document.getElementById('adm-edit-mode-index').value = index;
             document.getElementById('adm-action-btn').innerText = "حفظ التعديلات 💾";
@@ -3315,6 +3394,7 @@
             document.getElementById('adm-old-price').value = '';
             document.getElementById('adm-type-custom').value = '';
             document.getElementById('adm-img').value = '';
+            renderImgPreviews();
             document.getElementById('adm-edit-mode-index').value = '-1';
 
             const btn = document.getElementById('adm-action-btn');
@@ -3729,23 +3809,57 @@
         }
 
         function handleProductImgUpload(event) {
-            const file = event.target.files[0];
-            if (file && file.type.startsWith('image/')) {
-                compressImage(file, 600, 0.7).then(dataUrl => {
-                    // Generate unique filename
-                    const fileName = 'product_' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-                    // Save to database for sync
+            const files = event.target.files;
+            if (files.length > 0) {
+                const file = files[0];
+                compressImage(file, 800, 0.7).then(dataUrl => {
+                    const fileName = 'prod_' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g, '_');
                     if (!database.uploadedImages) database.uploadedImages = {};
                     database.uploadedImages[fileName] = dataUrl;
+
+                    const imgInput = document.getElementById('adm-img');
+                    let currentVal = imgInput.value.trim();
+                    if (currentVal) {
+                        imgInput.value = currentVal + ',' + fileName;
+                    } else {
+                        imgInput.value = fileName;
+                    }
+                    renderImgPreviews();
                     saveAdminChanges();
-                    // Auto-fill the image input
-                    document.getElementById('adm-img').value = fileName;
-                    alert('✅ تم رفع الصورة ومزامنتها بنجاح!');
                 }).catch(err => {
-                    console.error("Compression error:", err);
-                    alert("حدث خطأ أثناء معالجة الصورة. يرجى المحاولة مرة أخرى.");
+                    console.error("Upload error:", err);
+                    alert("خطأ في رفع الصورة");
                 });
             }
+        }
+
+        function renderImgPreviews() {
+            const container = document.getElementById('adm-img-previews');
+            const val = document.getElementById('adm-img').value;
+            if (!container) return;
+
+            if (!val) {
+                container.innerHTML = "";
+                return;
+            }
+
+            const imgs = val.split(',').map(s => s.trim()).filter(s => s);
+            const uploadedImages = database.uploadedImages || {};
+
+            container.innerHTML = imgs.map((id, idx) => `
+                <div style="position:relative;">
+                    <img src="${uploadedImages[id] || id}" style="width:50px; height:50px; object-fit:cover; border-radius:5px; border:1px solid #ddd;">
+                    <button onclick="removeImgPreview(${idx})" style="position:absolute; top:-5px; right:-5px; background:red; color:white; border:none; border-radius:50%; width:18px; height:18px; cursor:pointer; font-size:10px;">×</button>
+                </div>
+            `).join('');
+        }
+
+        function removeImgPreview(idx) {
+            const imgInput = document.getElementById('adm-img');
+            let imgs = imgInput.value.split(',').map(s => s.trim()).filter(s => s);
+            imgs.splice(idx, 1);
+            imgInput.value = imgs.join(',');
+            renderImgPreviews();
         }
 
         // Load saved home background on page load
