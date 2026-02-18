@@ -1733,6 +1733,13 @@
                         style="height:80px; resize:vertical; padding:8px;"
                         placeholder="أطعم المنتج (اكتب كل طعم في سطر منفصل)"></textarea>
                     <div id="adm-img-previews" style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px;"></div>
+                    <div style="display:flex; gap:10px; margin-bottom:10px;">
+                        <input type="file" id="product-img-input" accept="image/*" style="display:none;"
+                            onchange="handleProductImgUpload(event)">
+                        <button class="admin-btn"
+                            style="width:auto; padding:5px 15px; background:var(--gold); color:black;"
+                            onclick="document.getElementById('product-img-input').click()">📸 إضافة صورة للمنتج</button>
+                    </div>
                     <input type="text" id="adm-img" class="admin-input" placeholder="معرفات الصور (مفصول بفاصلة)">
                     <input type="hidden" id="adm-edit-mode-index" value="-1">
                     <button id="adm-action-btn" class="admin-btn" onclick="admAddProduct()">إضافة المنتج</button>
@@ -2743,6 +2750,7 @@
                 const i = p.index;
                 const isSoldOut = p.inStock === false;
                 const isVIP = p.isVIP || false;
+                const vipHTML = isVIP ? `<div class="vip-badge">الشيف يرشحه 👑</div>` : "";
                 const hasDiscount = p.isDiscount || (p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price));
                 const discountHTML = hasDiscount ? `<div class="discount-status-badge">عرض خاص / خصم 🏷️</div>` : "";
 
@@ -3560,12 +3568,6 @@
             syncUI();
         }
 
-        function admToggleVIP(cat, index) {
-            database[cat][index].isVIP = !database[cat][index].isVIP;
-            saveAdminChanges();
-            renderAdmTable();
-            syncUI();
-        }
 
         function renderBestSellers() {
             let all = [];
@@ -3594,21 +3596,6 @@
             } else {
                 sec.classList.add('hidden');
             }
-        }
-
-        function admToggleStock(cat, index) {
-            database[cat][index].inStock = !(database[cat][index].inStock !== false);
-            saveAdminChanges();
-            renderAdmTable();
-            syncUI();
-        }
-
-        function admDeleteProduct(cat, index) {
-            if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
-            database[cat].splice(index, 1);
-            saveAdminChanges();
-            renderAdmTable();
-            syncUI();
         }
 
         // --- Order History & Receipts ---
