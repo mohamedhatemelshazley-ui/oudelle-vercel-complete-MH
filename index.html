@@ -1483,6 +1483,12 @@
 
         <div id="product-grid" class="grid animate__animated animate__fadeIn"></div>
 
+        <div id="updates-section" class="best-sellers-container hidden"
+            style="background: linear-gradient(90deg, #fff5f5, #fff); border-right: 5px solid #ff4d4d; margin-top: 30px;">
+            <h3 style="margin-bottom:10px; font-size:1.1rem; color: #d32f2f;">📢 تحديثات وأخبار oudélle</h3>
+            <div id="updates-list" class="best-sellers-grid"></div>
+        </div>
+
         <h2 class="section-title">معرض الصور 📸</h2>
         <div id="customer-gallery" class="gallery-container"></div>
 
@@ -1635,6 +1641,25 @@
                     <button id="ramadan-toggle-btn" class="admin-btn" style="width:auto; padding:5px 20px;"
                         onclick="toggleRamadanMode()">تفعيل</button>
                 </div>
+            </div>
+
+            <div class="admin-section">
+                <h3>📢 إدارة التحديثات والأخبار</h3>
+                <div
+                    style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #ddd; margin-bottom: 10px;">
+                    <textarea id="adm-update-text" class="admin-input"
+                        style="width: 100%; height: 60px; margin-bottom: 10px;" placeholder="نص التحديث..."></textarea>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="adm-update-img" class="admin-input" style="flex: 1;"
+                            placeholder="اسم الصورة أو رابط (اختياري)">
+                        <input type="file" id="update-img-input" accept="image/*" style="display: none;"
+                            onchange="handleUpdateImgUpload(event)">
+                        <button class="admin-btn" style="width: auto; padding: 5px 15px; background: #2196f3;"
+                            onclick="document.getElementById('update-img-input').click()">📸 صورة</button>
+                    </div>
+                    <button class="add-btn" style="margin-top: 10px;" onclick="admAddUpdate()">إضافة التحديث ✅</button>
+                </div>
+                <div id="adm-updates-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
             </div>
 
             <div class="admin-section">
@@ -1852,7 +1877,14 @@
         }
         let WHATSAPP_NUM = "201023728183";
         let TICKER_TEXT = "عرض خاص: خصم 10% على جميع الحلويات الشرقية عند الطلب عبر الموقع! | التوصيل مجاني للطلبات فوق 500 ج.م | جرب الكنافة النابلسية الآن!";
-        let cart = JSON.parse(localStorage.getItem('oudelle_cart')) || [];
+        let cart = [];
+        try {
+            cart = JSON.parse(localStorage.getItem('oudelle_cart')) || [];
+            if (!Array.isArray(cart)) cart = [];
+        } catch (e) {
+            console.error("Cart init error:", e);
+            cart = [];
+        }
         let selectedTableNumber = null;
         let currentCat = 'oriental';
         let admCurrentCat = 'oriental';
@@ -1860,7 +1892,7 @@
 
         let database = {
             uploadedImages: {
-                "bosset_sadeh.jpg": "https://via.placeholder.com/300x200?text=بسبوسه+ساده",
+                "bosset_sadeh.jpg": "c:\Users\NewTech\.gemini\antigravity\scratch\oudelle-vercel-complete\بسبوسه ساده.jpg",
                 "bosset_meksharat.jpg": "https://via.placeholder.com/300x200?text=بسبوسه+مكسرات",
                 "bosset_qatah.jpg": "https://via.placeholder.com/300x200?text=بسبوسه+قشطه",
                 "bosset_nawela.jpg": "https://via.placeholder.com/300x200?text=بسبوسه+نوتيلا",
@@ -1994,6 +2026,7 @@
                     render(currentCat);
                     renderBestSellers();
                     renderGallery();
+                    renderUpdates();
                     syncUI();
 
                     // Apply Ramadan mode from cloud
@@ -2044,6 +2077,7 @@
                 { name: "مدينه الالمونيوم", price: 60 },
                 { name: "قريه بركه", price: 70 }
             ];
+            if (!database.updates) database.updates = [];
         }
 
         // Cross-tab Synchronization (Local Mode Only)
@@ -2212,7 +2246,7 @@
                 html = '<h2>لم يتم العثور على نتائج</h2>';
             }
 
-            document.getElementById('products-container').innerHTML = html;
+            document.getElementById('product-grid').innerHTML = html;
         }
 
         // WebSocket-like instant sync - multiple parallel checks
@@ -2413,6 +2447,7 @@
             renderStats();
             renderAdmOrders();
             renderAdmMixEditor();
+            renderAdmUpdates();
             if (database.settings) {
                 document.getElementById('adm-wa-num').value = database.settings.whatsapp;
                 document.getElementById('adm-ticker-text').value = database.settings.ticker;
@@ -2483,6 +2518,8 @@
             renderCategories();
             render(currentCat);
             renderBestSellers();
+            renderUpdates();
+            updateCartCount();
             const sky = document.getElementById('sky-overlay');
             if (sky && sky.children.length === 0) {
                 for (let i = 0; i < 80; i++) {
@@ -2686,6 +2723,7 @@
 
         function addPiece(cat, index) {
             const p = database[cat][index];
+            if (!p) return;
             const qInput = document.getElementById(`q-${cat}-${index}`);
             const quantity = qInput ? parseInt(qInput.value) : 1;
             const optionSelect = document.getElementById(`o-${cat}-${index}`);
@@ -2709,8 +2747,9 @@
 
         function addKg(cat, index) {
             const p = database[cat][index];
+            if (!p) return;
             const wSelect = document.getElementById(`w-${cat}-${index}`);
-            const weight = parseFloat(wSelect.value);
+            const weight = wSelect ? parseFloat(wSelect.value) : 1.0; // Default to 1kg if selector missing
             const optionSelect = document.getElementById(`o-${cat}-${index}`);
             const option = optionSelect ? optionSelect.value : null;
 
@@ -3563,6 +3602,96 @@
             }
         }
 
+        function handleUpdateImgUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                compressImage(file, 800, 0.75).then(dataUrl => {
+                    const fileName = 'upd_' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+                    if (!database.uploadedImages) database.uploadedImages = {};
+                    database.uploadedImages[fileName] = dataUrl;
+                    saveAdminChanges();
+                    document.getElementById('adm-update-img').value = fileName;
+                }).catch(err => {
+                    console.error("Update img error:", err);
+                    alert("خطأ في رفع صورة التحديث");
+                });
+            }
+        }
+
+        function admAddUpdate() {
+            const text = document.getElementById('adm-update-text').value;
+            const img = document.getElementById('adm-update-img').value;
+            if (!text) return alert("يرجى إدخال نص التحديث");
+
+            const update = {
+                text: text,
+                img: img,
+                date: new Date().toLocaleDateString('ar-EG'),
+                timestamp: Date.now()
+            };
+
+            if (!database.updates) database.updates = [];
+            database.updates.unshift(update);
+            saveAdminChanges();
+
+            document.getElementById('adm-update-text').value = '';
+            document.getElementById('adm-update-img').value = '';
+            renderAdmUpdates();
+            renderUpdates();
+        }
+
+        function admDeleteUpdate(index) {
+            if (!confirm("حذف هذا التحديث؟")) return;
+            database.updates.splice(index, 1);
+            saveAdminChanges();
+            renderAdmUpdates();
+            renderUpdates();
+        }
+
+        function renderAdmUpdates() {
+            const list = document.getElementById('adm-updates-list');
+            if (!list) return;
+            const updates = database.updates || [];
+            const uploadedImages = database.uploadedImages || {};
+
+            list.innerHTML = updates.map((u, i) => `
+                <div style="background:#eee; padding:10px; border-radius:10px; display:flex; gap:10px; align-items:center;">
+                    <img src="${uploadedImages[u.img] || u.img || 'https://via.placeholder.com/50'}" style="width:50px; height:50px; object-fit:cover; border-radius:5px;">
+                    <div style="flex:1;">
+                        <div style="font-size:0.9rem;">${u.text}</div>
+                        <div style="font-size:0.7rem; color:#666;">${u.date}</div>
+                    </div>
+                    <button class="admin-btn" style="background:#dc3545; padding:5px 10px; width:auto;" onclick="admDeleteUpdate(${i})">حذف</button>
+                </div>
+            `).join('');
+        }
+
+        function renderUpdates() {
+            const list = document.getElementById('updates-list');
+            const section = document.getElementById('updates-section');
+            if (!list || !section) return;
+
+            const updates = database.updates || [];
+            if (updates.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+
+            section.classList.remove('hidden');
+            const uploadedImages = database.uploadedImages || {};
+
+            list.innerHTML = updates.map(u => {
+                let imgSrc = u.img ? (uploadedImages[u.img] || u.img) : null;
+                return `
+                    <div class="best-seller-item" style="min-width: 250px; text-align: right; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                        ${imgSrc ? `<img src="${imgSrc}" style="width: 100%; height: 120px; border-radius: 10px; margin-bottom: 10px; border: none;">` : ''}
+                        <p style="font-size: 0.95rem; font-weight: bold; margin-bottom: 5px;">${u.text}</p>
+                        <span style="font-size: 0.75rem; color: #999;">${u.date}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
         // --- Image Upload Functions ---
         function handleHomeBgUpload(event) {
             const file = event.target.files[0];
@@ -3611,13 +3740,13 @@
             // Load from database first
             if (database.settings && database.settings.homeBackground) {
                 const sliderBg = document.getElementById('slider-bg');
-                sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no - repeat`;
+                sliderBg.style.background = `url(${database.settings.homeBackground}) center center / cover no-repeat`;
             }
             // Fallback to localStorage
             const savedBg = localStorage.getItem('oudelle_home_bg');
             if (savedBg) {
                 const sliderBg = document.getElementById('slider-bg');
-                sliderBg.style.background = `url(${savedBg}) center center / cover no - repeat`;
+                sliderBg.style.background = `url(${savedBg}) center center / cover no-repeat`;
             }
         });
 
